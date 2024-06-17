@@ -42,17 +42,27 @@ async def perform_custom_task(task_id, delay, bot_work_time, scheduled_task, mod
     try:
         await asyncio.sleep(delay)
         info = await get_task_status(task_id=task_id)
+        file_path = './reserv.json'
+
         print(info)
         if info['status'] == 'scheduled':
             current_time = datetime.datetime.now()
             bot_work_time_minutes = current_time + datetime.timedelta(minutes=bot_work_time)
             print("Current directory:", os.getcwd())
             print("Files in current directory:", os.listdir('.'))
-            try:
-                with open('reserv.json', 'r') as file:
-                    data = json.load(file)
-            except FileNotFoundError:
-                print("File not found")
+            if os.access(file_path, os.R_OK):
+                try:
+                    with open(file_path, 'r') as file:
+                        data = json.load(file)
+                        print("File loaded successfully")
+                except FileNotFoundError:
+                    print("File not found")
+                    data = []
+                except json.JSONDecodeError:
+                    print("Error decoding JSON")
+                    data = []
+            else:
+                print(f"No read access to file: {file_path}")
                 data = []
 
             if isinstance(data, list):
