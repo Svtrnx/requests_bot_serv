@@ -6,6 +6,7 @@ import datetime
 from pydantic import BaseModel
 import random
 import string
+import os
 userRouter = APIRouter()
 
 scheduled_tasks = {}
@@ -45,8 +46,8 @@ async def perform_custom_task(task_id, delay, bot_work_time, scheduled_task, mod
         if info['status'] == 'scheduled':
             current_time = datetime.datetime.now()
             bot_work_time_minutes = current_time + datetime.timedelta(minutes=bot_work_time)
-
-            # Здесь продолжается выполнение вашей логики
+            print("Current directory:", os.getcwd())
+            print("Files in current directory:", os.listdir('.'))
             try:
                 with open('reserv.json', 'r') as file:
                     data = json.load(file)
