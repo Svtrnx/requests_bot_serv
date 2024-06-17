@@ -237,7 +237,7 @@ async def make_request(credentials, proxy_url, bot_work_time_minutes, scheduled_
 
 async def main():
     try:
-        with open('C:\\Users\\young\\Desktop\\pupp\\reserv.json', 'r') as file:
+        with open('reserv.json', 'r') as file:
             data = json.load(file)
     except FileNotFoundError:
         print("File not found")
