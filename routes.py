@@ -80,7 +80,8 @@ async def perform_custom_task(task_id, delay, bot_work_time, scheduled_task, mod
                     print(f"Задача {task_id} отменена")
                     break
 
-            await asyncio.gather(*tasks)
+            for task in tasks:
+                await task 
         print(f"Выполнение задачи {task_id} завершено")
         info_cancel = await cancel_task(task_id)
         print(info_cancel)

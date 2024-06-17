@@ -10,6 +10,7 @@ import string
 import datetime
 import gc
 
+
 def extract_cookies(cookie_list):
     cookies = {}
     for cookie in cookie_list:
@@ -109,21 +110,20 @@ sec_ch_ua, sec_ch_ua_mobile, sec_ch_ua_platform = generate_sec_ch_ua_headers(use
 def cleanup_memory():
     gc.collect()
 
-async def fetch_data(url, headers, cookies, proxy_url, get_cancel_flag, bot_work_time_minutes, model_id):
+async def fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag, bot_work_time_minutes, model_id):
     while True:
         
         if datetime.datetime.now() >= bot_work_time_minutes or get_cancel_flag():
             break
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, headers=headers, cookies=cookies, proxy=f"socks5://{proxy_url}") as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        print(f"{url}:")
-                        # print(data)
-                    else:
-                        # print(f"Error: {response.status} for URL: {url}")
-                        pass
+            async with session.get(url, headers=headers, cookies=cookies, proxy=f"socks5://{proxy_url}") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    print(f"{url}:")
+                    # print(data)
+                else:
+                    # print(f"Error: {response.status} for URL: {url}")
+                    pass
             
         except Exception as e:
             print(f"Exception occurred", url, e)
@@ -230,13 +230,13 @@ async def make_request(credentials, proxy_url, bot_work_time_minutes, scheduled_
         (f"https://chaturbate.com/api/biocontext/{model_id}/?")
     ]
     try:
-        # async with aiohttp.ClientSession() as session:
-        tasks = [
-            fetch_data(url, headers, cookies, proxy_url, get_cancel_flag, bot_work_time_minutes, model_id)
-            for url in urls_and_intervals 
-        ]
+        async with aiohttp.ClientSession() as session:
+            tasks = [
+                fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag, bot_work_time_minutes, model_id)
+                for url in urls_and_intervals 
+            ]
 
-        await asyncio.gather(*tasks)
+            await asyncio.gather(*tasks)
     
     except asyncio.TimeoutError:
         print(f"Task timed out after {bot_work_time_minutes} minutes")
