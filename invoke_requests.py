@@ -113,7 +113,6 @@ async def fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag,
         if get_cancel_flag():
             break
         try:
-            print(proxy_url)
             async with session.get(url, headers=headers, cookies=cookies, proxy=f"socks5://{proxy_url}") as response:
                 if response.status == 200:
                     data = await response.json()
@@ -142,7 +141,7 @@ async def fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag,
                 await asyncio.sleep(5)
             await asyncio.sleep(5)
         if url == f"https://chaturbate.com/notifications/updates/?notification_type=twitter_feed&notification_type=offline_tip":
-            for i in range(29):
+            for i in range(28):
                 if datetime.datetime.now() >= bot_work_time_minutes:
                     break
                 if get_cancel_flag():
@@ -150,7 +149,31 @@ async def fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag,
                 await asyncio.sleep(5)
             await asyncio.sleep(5)
         if url == f"https://chaturbate.com/photo_videos/api/pvcontext/{model_id}/":
-            for i in range(15):
+            for i in range(14):
+                if datetime.datetime.now() >= bot_work_time_minutes:
+                    break
+                if get_cancel_flag():
+                    break
+                await asyncio.sleep(5)
+            await asyncio.sleep(5)
+        if url == f"https://chaturbate.com/api/getchatuserlist/?roomname={model_id}&private=false&sort_by=a&exclude_staff=false":
+            for i in range(6):
+                if datetime.datetime.now() >= bot_work_time_minutes:
+                    break
+                if get_cancel_flag():
+                    break
+                await asyncio.sleep(5)
+            await asyncio.sleep(4)
+        if url == f"https://chaturbate.com/contest/log/{model_id}/":
+            for i in range(9):
+                if datetime.datetime.now() >= bot_work_time_minutes:
+                    break
+                if get_cancel_flag():
+                    break
+                await asyncio.sleep(5)
+            await asyncio.sleep(5)
+        if url == f"https://chaturbate.com/{model_id}/":
+            for i in range(90):
                 if datetime.datetime.now() >= bot_work_time_minutes:
                     break
                 if get_cancel_flag():
@@ -158,7 +181,7 @@ async def fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag,
                 await asyncio.sleep(5)
             await asyncio.sleep(5)
         if url == f"https://chaturbate.com/api/more_like/{model_id}/":
-            for i in range(17):
+            for i in range(16):
                 if datetime.datetime.now() >= bot_work_time_minutes:
                     break
                 if get_cancel_flag():
@@ -166,7 +189,7 @@ async def fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag,
                 await asyncio.sleep(5)
             await asyncio.sleep(5)
         if url == f"https://chaturbate.com/api/ts/games/current/room/{model_id}":
-            for i in range(8):
+            for i in range(7):
                 if datetime.datetime.now() >= bot_work_time_minutes:
                     break
                 if get_cancel_flag():
@@ -213,7 +236,10 @@ async def make_request(credentials, proxy_url, bot_work_time_minutes, scheduled_
     urls_and_intervals = [
         (f"https://chaturbate.com/push_service/room_user_count/{model_id}/?presence_id={presence_id}"),
         (f"https://chaturbate.com/api/panel_context/{model_id}/"),
+        (f"https://chaturbate.com/{model_id}/"),
+        (f"https://chaturbate.com/contest/log/{model_id}/"),
         (f"https://chaturbate.com/notifications/updates/?notification_type=twitter_feed&notification_type=offline_tip"),
+        (f"https://chaturbate.com/api/getchatuserlist/?roomname={model_id}&private=false&sort_by=a&exclude_staff=false"),
         (f"https://chaturbate.com/photo_videos/api/pvcontext/{model_id}/"),
         (f"https://chaturbate.com/api/more_like/{model_id}/"),
         (f"https://chaturbate.com/api/ts/games/current/room/{model_id}"),
