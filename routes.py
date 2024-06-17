@@ -6,7 +6,6 @@ import datetime
 from pydantic import BaseModel
 import random
 import string
-import os
 userRouter = APIRouter()
 
 scheduled_tasks = {}
@@ -42,40 +41,161 @@ async def perform_custom_task(task_id, delay, bot_work_time, scheduled_task, mod
     try:
         await asyncio.sleep(delay)
         info = await get_task_status(task_id=task_id)
-        file_path = './reserv.json'
-
         print(info)
         if info['status'] == 'scheduled':
             current_time = datetime.datetime.now()
             bot_work_time_minutes = current_time + datetime.timedelta(minutes=bot_work_time)
-            print("Current directory:", os.getcwd())
-            print("Files in current directory:", os.listdir('.'))
-            def load_file(path):
-                print("Trying to open file:", path)
-                print("Current directory:", os.getcwd())
-                print("Files in current directory:", os.listdir('.'))
-                if os.access(path, os.R_OK):
-                    try:
-                        with open(path, 'r') as file:
-                            data = json.load(file)
-                            print("File loaded successfully")
-                            return data
-                    except FileNotFoundError:
-                        print("File not found")
-                    except json.JSONDecodeError:
-                        print("Error decoding JSON")
-                else:
-                    print(f"No read access to file: {path}")
-                return []
 
-        # Загружаем файл первый раз
-            data = load_file(file_path)
+            data = [
+                    {
+                        "username_trnsl": "Remi1785",
+                        "password_trnsl": "9GGHCSzTgVMAfw9",
+                        "cookies_trnsl": [
+                        {
+                            "name": "sessionid",
+                            "value": "ywu886dmzet6nlhncww552ycjp4q70ub",
+                            "domain": ".chaturbate.com",
+                            "path": "/",
+                            "expires": -1,
+                            "size": 41,
+                            "httpOnly": True,
+                            "secure": True,
+                            "session": True,
+                            "sameSite": "None",
+                            "priority": "Medium",
+                            "sameParty": False,
+                            "sourceScheme": "Secure"
+                        },
+                        {
+                            "name": "csrftoken",
+                            "value": "CVZs1gTgCDscCQzm0JY4r5UQVMQAbDBkKEClyo4KvYnsUIFAXGiTqNryYBXQGBOW",
+                            "domain": ".chaturbate.com",
+                            "path": "/",
+                            "expires": 1749892787.458345,
+                            "size": 73,
+                            "httpOnly": False,
+                            "secure": True,
+                            "session": False,
+                            "sameSite": "None",
+                            "priority": "Medium",
+                            "sameParty": False,
+                            "sourceScheme": "Secure"
+                        },
+                        {
+                            "name": "_ga_GX0FLQH21P",
+                            "value": "GS1.1.1718443183.1.0.1718443187.0.0.0",
+                            "domain": ".chaturbate.com",
+                            "path": "/",
+                            "expires": 1753003187.467447,
+                            "size": 51,
+                            "httpOnly": False,
+                            "secure": False,
+                            "session": False,
+                            "priority": "Medium",
+                            "sameParty": False,
+                            "sourceScheme": "Secure"
+                        },
+                        {
+                            "name": "cf_clearance",
+                            "value": "z3VhZ6LBI0iTITZz4ZaII3ygTzVujEHuEbUbFeoTZVs-1718443185-1.0.1.1-UHpqyfa4rRzdTzxafGwwVGuYbtLLyhFDNkPDThid0H.x8OC9hRelnkjv4EHUqB5l6XgoTegsL2kOgSIvqGWisw",
+                            "domain": ".chaturbate.com",
+                            "path": "/",
+                            "expires": 1749979183.896999,
+                            "size": 161,
+                            "httpOnly": True,
+                            "secure": True,
+                            "session": False,
+                            "sameSite": "None",
+                            "priority": "Medium",
+                            "sameParty": False,
+                            "sourceScheme": "Secure",
+                            "partitionKey": {
+                            "topLevelSite": "https://chaturbate.com",
+                            "hasCrossSiteAncestor": False
+                            }
+                        },
+                        {
+                            "name": "__cf_bm",
+                            "value": "dHUf5lUA4v.0i7huUBDoIdNqhU2ucMq1S61iXZXjABY-1718443189-1.0.1.1-jUQH1zd2fjYldHdMTMdCEKySHFhrGcgPWwOYdXnazvw.cVYJgdOJTSqSudutN4HyzhtnIV3St5Lu0RgIav5Ctg",
+                            "domain": ".chaturbate.com",
+                            "path": "/",
+                            "expires": 1718444987.458454,
+                            "size": 156,
+                            "httpOnly": True,
+                            "secure": True,
+                            "session": False,
+                            "sameSite": "None",
+                            "priority": "Medium",
+                            "sameParty": False,
+                            "sourceScheme": "Secure"
+                        },
+                        {
+                            "name": "_ga",
+                            "value": "GA1.1.322658472.1718443183",
+                            "domain": ".chaturbate.com",
+                            "path": "/",
+                            "expires": 1753003183.316805,
+                            "size": 29,
+                            "httpOnly": False,
+                            "secure": False,
+                            "session": False,
+                            "priority": "Medium",
+                            "sameParty": False,
+                            "sourceScheme": "Secure"
+                        },
+                        {
+                            "name": "__utfpp",
+                            "value": "f:trnxbc2dd803b41dfc5b31b159677e4475d6:1sIPZb:t1pZwln5b6KOThnoTYZ9RA5ZzodLEuLK1t7mX_ZRpZk",
+                            "domain": ".chaturbate.com",
+                            "path": "/",
+                            "expires": 1753003185.045099,
+                            "size": 96,
+                            "httpOnly": False,
+                            "secure": True,
+                            "session": False,
+                            "sameSite": "None",
+                            "priority": "Medium",
+                            "sameParty": False,
+                            "sourceScheme": "Secure"
+                        },
+                        {
+                            "name": "sbr",
+                            "value": "sec:sbre0ed061d-47b9-425e-b4d9-fd840f5b92af:1sIPZX:Di6_Az_xc141mWUT5dkN2F7gv57Fko3JJhtMteKkntk",
+                            "domain": ".chaturbate.com",
+                            "path": "/",
+                            "expires": 1753003181.268763,
+                            "size": 97,
+                            "httpOnly": True,
+                            "secure": True,
+                            "session": False,
+                            "sameSite": "None",
+                            "priority": "Medium",
+                            "sameParty": False,
+                            "sourceScheme": "Secure"
+                        },
+                        {
+                            "name": "affkey",
+                            "value": "eJyrVipSslJQUtJRUEoBMYwMjEx0Dcx0DU2VagFVGwXN",
+                            "domain": ".chaturbate.com",
+                            "path": "/",
+                            "expires": 1721035181.26873,
+                            "size": 50,
+                            "httpOnly": False,
+                            "secure": True,
+                            "session": False,
+                            "sameSite": "None",
+                            "priority": "Medium",
+                            "sameParty": False,
+                            "sourceScheme": "Secure"
+                        }
+                        ]
+                    }
+                    ]
 
-            if isinstance(data, list):
-                print('Total accounts: ', len(data))
+            print("Total accounts: ", len(data))
 
             credentials_data = await main()
-
+            print("Total credentials: ", credentials_data)
             if not credentials_data:
                 return
 
