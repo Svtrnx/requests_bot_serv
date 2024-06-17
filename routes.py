@@ -48,7 +48,7 @@ async def perform_custom_task(task_id, delay, bot_work_time, scheduled_task, mod
 
             # Здесь продолжается выполнение вашей логики
             try:
-                with open('./reserv.json', 'r') as file:
+                with open('reserv.json', 'r') as file:
                     data = json.load(file)
             except FileNotFoundError:
                 print("File not found")
