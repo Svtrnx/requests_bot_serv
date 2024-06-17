@@ -13,7 +13,7 @@ scheduled_tasks = {}
 class ScheduleTaskRequest(BaseModel):
     delay: int
     bot_work_time: int
-    model_id: str
+    streamer_id: str
     num_tasks: int
     cool_down_tasks: int
     
@@ -116,7 +116,7 @@ async def schedule_task(request: ScheduleTaskRequest, background_tasks: Backgrou
     task_id = generate_random_id()
     scheduled_task = ScheduledTask(task_id)
     scheduled_tasks[task_id] = scheduled_task
-    background_tasks.add_task(perform_custom_task, task_id, request.delay, request.bot_work_time, scheduled_task, request.model_id, request.num_tasks, request.cool_down_tasks)
+    background_tasks.add_task(perform_custom_task, task_id, request.delay, request.bot_work_time, scheduled_task, request.streamer_id, request.num_tasks, request.cool_down_tasks)
     print(f"Задача {task_id} запланирована на выполнение через {request.delay} секунд")
     return {"task_id": task_id}
 

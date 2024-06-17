@@ -9,6 +9,7 @@ import random
 import string
 import datetime
 import httpx
+from aiohttp_socks import ProxyConnector
 
 def extract_cookies(cookie_list):
     cookies = {}
@@ -113,14 +114,18 @@ async def fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag,
         if get_cancel_flag():
             break
         try:
-            async with session.get(url, headers=headers, cookies=cookies, proxy=f"socks5://{proxy_url}") as response:
-                if response.status == 200:
-                    data = await response.json()
-                    print(f"{url}:")
-                    # print(data)
-                else:
-                    # print(f"Error: {response.status} for URL: {url}")
-                    pass
+            print(proxy_url)
+            proxy_url_full = f"socks5h://{proxy_url}"
+            connector = ProxyConnector.from_url(proxy_url_full)
+            async with aiohttp.ClientSession(connector=connector) as session:
+                async with session.get(url, headers=headers, cookies=cookies) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        # print(data)
+                        # print(data)
+                    else:
+                        # print(f"Error: {response.status} for URL: {url}")
+                        pass
             
         except Exception as e:
             print(f"Exception occurred", url, e)
