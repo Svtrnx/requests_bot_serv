@@ -8,7 +8,7 @@ from fake_useragent import UserAgent
 import random
 import string
 import datetime
-import httpx
+import gc
 
 def extract_cookies(cookie_list):
     cookies = {}
@@ -105,104 +105,88 @@ def generate_sec_ch_ua_headers(user_agent):
 
 sec_ch_ua, sec_ch_ua_mobile, sec_ch_ua_platform = generate_sec_ch_ua_headers(user_agent)
 
-async def fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag, bot_work_time_minutes, model_id):
+
+def cleanup_memory():
+    gc.collect()
+
+async def fetch_data(url, headers, cookies, proxy_url, get_cancel_flag, bot_work_time_minutes, model_id):
     while True:
         
-        if datetime.datetime.now() >= bot_work_time_minutes:
-            break
-        if get_cancel_flag():
+        if datetime.datetime.now() >= bot_work_time_minutes or get_cancel_flag():
             break
         try:
-            async with session.get(url, headers=headers, cookies=cookies, proxy=f"socks5://{proxy_url}") as response:
-                if response.status == 200:
-                    data = await response.json()
-                    print(f"{url}:")
-                    # print(data)
-                else:
-                    # print(f"Error: {response.status} for URL: {url}")
-                    pass
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers, cookies=cookies, proxy=f"socks5://{proxy_url}") as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        print(f"{url}:")
+                        # print(data)
+                    else:
+                        # print(f"Error: {response.status} for URL: {url}")
+                        pass
             
         except Exception as e:
             print(f"Exception occurred", url, e)
         if url == f"https://chaturbate.com/push_service/room_user_count/{model_id}/?presence_id={presence_id}":
             for i in range(11):
-                if datetime.datetime.now() >= bot_work_time_minutes:
-                    break
-                if get_cancel_flag():
+                if datetime.datetime.now() >= bot_work_time_minutes or get_cancel_flag():
                     break
                 await asyncio.sleep(5)
             await asyncio.sleep(5)
-        if url == f"https://chaturbate.com/api/panel_context/{model_id}/":
+        elif url == f"https://chaturbate.com/api/panel_context/{model_id}/":
             for i in range(1):
-                if datetime.datetime.now() >= bot_work_time_minutes:
-                    break
-                if get_cancel_flag():
+                if datetime.datetime.now() >= bot_work_time_minutes or get_cancel_flag():
                     break
                 await asyncio.sleep(5)
             await asyncio.sleep(5)
-        if url == f"https://chaturbate.com/notifications/updates/?notification_type=twitter_feed&notification_type=offline_tip":
+        elif url == f"https://chaturbate.com/notifications/updates/?notification_type=twitter_feed&notification_type=offline_tip":
             for i in range(28):
-                if datetime.datetime.now() >= bot_work_time_minutes:
-                    break
-                if get_cancel_flag():
+                if datetime.datetime.now() >= bot_work_time_minutes or get_cancel_flag():
                     break
                 await asyncio.sleep(5)
             await asyncio.sleep(5)
         if url == f"https://chaturbate.com/photo_videos/api/pvcontext/{model_id}/":
             for i in range(14):
-                if datetime.datetime.now() >= bot_work_time_minutes:
-                    break
-                if get_cancel_flag():
+                if datetime.datetime.now() >= bot_work_time_minutes or get_cancel_flag():
                     break
                 await asyncio.sleep(5)
             await asyncio.sleep(5)
-        if url == f"https://chaturbate.com/api/getchatuserlist/?roomname={model_id}&private=false&sort_by=a&exclude_staff=false":
+        elif url == f"https://chaturbate.com/api/getchatuserlist/?roomname={model_id}&private=false&sort_by=a&exclude_staff=false":
             for i in range(6):
-                if datetime.datetime.now() >= bot_work_time_minutes:
-                    break
-                if get_cancel_flag():
+                if datetime.datetime.now() >= bot_work_time_minutes or get_cancel_flag():
                     break
                 await asyncio.sleep(5)
             await asyncio.sleep(4)
-        if url == f"https://chaturbate.com/contest/log/{model_id}/":
+        elif url == f"https://chaturbate.com/contest/log/{model_id}/":
             for i in range(9):
-                if datetime.datetime.now() >= bot_work_time_minutes:
-                    break
-                if get_cancel_flag():
+                if datetime.datetime.now() >= bot_work_time_minutes or get_cancel_flag():
                     break
                 await asyncio.sleep(5)
             await asyncio.sleep(5)
-        if url == f"https://chaturbate.com/{model_id}/":
+        elif url == f"https://chaturbate.com/{model_id}/":
             for i in range(90):
-                if datetime.datetime.now() >= bot_work_time_minutes:
-                    break
-                if get_cancel_flag():
+                if datetime.datetime.now() >= bot_work_time_minutes or get_cancel_flag():
                     break
                 await asyncio.sleep(5)
             await asyncio.sleep(5)
-        if url == f"https://chaturbate.com/api/more_like/{model_id}/":
+        elif url == f"https://chaturbate.com/api/more_like/{model_id}/":
             for i in range(16):
-                if datetime.datetime.now() >= bot_work_time_minutes:
-                    break
-                if get_cancel_flag():
+                if datetime.datetime.now() >= bot_work_time_minutes or get_cancel_flag():
                     break
                 await asyncio.sleep(5)
             await asyncio.sleep(5)
-        if url == f"https://chaturbate.com/api/ts/games/current/room/{model_id}":
+        elif url == f"https://chaturbate.com/api/ts/games/current/room/{model_id}":
             for i in range(7):
-                if datetime.datetime.now() >= bot_work_time_minutes:
-                    break
-                if get_cancel_flag():
+                if datetime.datetime.now() >= bot_work_time_minutes or get_cancel_flag():
                     break
                 await asyncio.sleep(5)
             await asyncio.sleep(7)
-        if url == f"https://chaturbate.com/api/biocontext/{model_id}/?":
+        elif url == f"https://chaturbate.com/api/biocontext/{model_id}/?":
             for i in range(5):
-                if datetime.datetime.now() >= bot_work_time_minutes:
-                    break
-                if get_cancel_flag():
+                if datetime.datetime.now() >= bot_work_time_minutes or get_cancel_flag():
                     break
             await asyncio.sleep(7)
+        cleanup_memory()
 
 
 async def make_request(credentials, proxy_url, bot_work_time_minutes, scheduled_task, model_id):
@@ -246,13 +230,13 @@ async def make_request(credentials, proxy_url, bot_work_time_minutes, scheduled_
         (f"https://chaturbate.com/api/biocontext/{model_id}/?")
     ]
     try:
-        async with aiohttp.ClientSession() as session:
-            tasks = [
-                fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag, bot_work_time_minutes, model_id)
-                for url in urls_and_intervals 
-            ]
+        # async with aiohttp.ClientSession() as session:
+        tasks = [
+            fetch_data(url, headers, cookies, proxy_url, get_cancel_flag, bot_work_time_minutes, model_id)
+            for url in urls_and_intervals 
+        ]
 
-            await asyncio.gather(*tasks)
+        await asyncio.gather(*tasks)
     
     except asyncio.TimeoutError:
         print(f"Task timed out after {bot_work_time_minutes} minutes")
