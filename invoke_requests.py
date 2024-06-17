@@ -114,7 +114,7 @@ async def fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag,
             break
         try:
             print(proxy_url)
-            async with session.get(url, headers=headers, cookies=cookies, proxy=f"socks5://{proxy_url}") as response:
+            async with session.get(url, headers=headers, cookies=cookies, proxy=f"socks5h://{proxy_url}") as response:
                 if response.status == 200:
                     data = await response.json()
                     print(f"{url}:")
