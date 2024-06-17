@@ -123,7 +123,7 @@ async def fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag,
                     pass
             
         except Exception as e:
-            print(f"Exception occurred", url)
+            print(f"Exception occurred", url, e)
         if url == f"https://chaturbate.com/push_service/room_user_count/{model_id}/?presence_id={presence_id}":
             for i in range(11):
                 if datetime.datetime.now() >= bot_work_time_minutes:
