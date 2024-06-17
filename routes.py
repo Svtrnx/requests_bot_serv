@@ -50,20 +50,26 @@ async def perform_custom_task(task_id, delay, bot_work_time, scheduled_task, mod
             bot_work_time_minutes = current_time + datetime.timedelta(minutes=bot_work_time)
             print("Current directory:", os.getcwd())
             print("Files in current directory:", os.listdir('.'))
-            if os.access(file_path, os.R_OK):
-                try:
-                    with open(file_path, 'r') as file:
-                        data = json.load(file)
-                        print("File loaded successfully")
-                except FileNotFoundError:
-                    print("File not found")
-                    data = []
-                except json.JSONDecodeError:
-                    print("Error decoding JSON")
-                    data = []
-            else:
-                print(f"No read access to file: {file_path}")
-                data = []
+            def load_file(path):
+                print("Trying to open file:", path)
+                print("Current directory:", os.getcwd())
+                print("Files in current directory:", os.listdir('.'))
+                if os.access(path, os.R_OK):
+                    try:
+                        with open(path, 'r') as file:
+                            data = json.load(file)
+                            print("File loaded successfully")
+                            return data
+                    except FileNotFoundError:
+                        print("File not found")
+                    except json.JSONDecodeError:
+                        print("Error decoding JSON")
+                else:
+                    print(f"No read access to file: {path}")
+                return []
+
+        # Загружаем файл первый раз
+            data = load_file(file_path)
 
             if isinstance(data, list):
                 print('Total accounts: ', len(data))
