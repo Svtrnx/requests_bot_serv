@@ -186,7 +186,6 @@ async def fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag,
                 if datetime.datetime.now() >= bot_work_time_minutes or get_cancel_flag():
                     break
             await asyncio.sleep(7)
-        cleanup_memory()
 
 
 async def make_request(credentials, proxy_url, bot_work_time_minutes, scheduled_task, model_id):
