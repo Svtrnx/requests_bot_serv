@@ -7,9 +7,14 @@ import base64
 from fake_useragent import UserAgent
 import random
 import string
-import datetime
+from datetime import datetime, timedelta
 import gc
+import websockets
 
+async def send_increment_message(task_id):
+    uri = f"ws://localhost:8000/ws/{task_id}"
+    async with websockets.connect(uri) as websocket:
+        await websocket.send("increment")
 
 def extract_cookies(cookie_list):
     cookies = {}
@@ -113,13 +118,13 @@ def cleanup_memory():
 async def fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag, bot_work_time_minutes, model_id):
     while True:
         
-        if datetime.datetime.now() >= bot_work_time_minutes or get_cancel_flag():
+        if datetime.now() >= bot_work_time_minutes or get_cancel_flag():
             break
         try:
             async with session.get(url, headers=headers, cookies=cookies, proxy=f"socks5://{proxy_url}") as response:
                 if response.status == 200:
                     data = await response.json()
-                    print(f"{url}:")
+                    # print(f"{url}:")
                     # print(data)
                 else:
                     # print(f"Error: {response.status} for URL: {url}")
@@ -128,68 +133,34 @@ async def fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag,
         except Exception as e:
             print(f"Exception occurred", url, e)
         if url == f"https://chaturbate.com/push_service/room_user_count/{model_id}/?presence_id={presence_id}":
-            for i in range(11):
-                if datetime.datetime.now() >= bot_work_time_minutes or get_cancel_flag():
-                    break
-                await asyncio.sleep(5)
-            await asyncio.sleep(5)
+            await asyncio.sleep(60)
         elif url == f"https://chaturbate.com/api/panel_context/{model_id}/":
-            for i in range(1):
-                if datetime.datetime.now() >= bot_work_time_minutes or get_cancel_flag():
-                    break
-                await asyncio.sleep(5)
-            await asyncio.sleep(5)
+            await asyncio.sleep(10)
         elif url == f"https://chaturbate.com/notifications/updates/?notification_type=twitter_feed&notification_type=offline_tip":
-            for i in range(28):
-                if datetime.datetime.now() >= bot_work_time_minutes or get_cancel_flag():
-                    break
-                await asyncio.sleep(5)
-            await asyncio.sleep(5)
+            await asyncio.sleep(110)
         if url == f"https://chaturbate.com/photo_videos/api/pvcontext/{model_id}/":
-            for i in range(14):
-                if datetime.datetime.now() >= bot_work_time_minutes or get_cancel_flag():
-                    break
-                await asyncio.sleep(5)
-            await asyncio.sleep(5)
+            await asyncio.sleep(80)
         elif url == f"https://chaturbate.com/api/getchatuserlist/?roomname={model_id}&private=false&sort_by=a&exclude_staff=false":
-            for i in range(6):
-                if datetime.datetime.now() >= bot_work_time_minutes or get_cancel_flag():
-                    break
-                await asyncio.sleep(5)
-            await asyncio.sleep(4)
+            await asyncio.sleep(39)
         elif url == f"https://chaturbate.com/contest/log/{model_id}/":
-            for i in range(9):
-                if datetime.datetime.now() >= bot_work_time_minutes or get_cancel_flag():
-                    break
-                await asyncio.sleep(5)
-            await asyncio.sleep(5)
+            await asyncio.sleep(53)
         elif url == f"https://chaturbate.com/{model_id}/":
-            for i in range(90):
-                if datetime.datetime.now() >= bot_work_time_minutes or get_cancel_flag():
-                    break
-                await asyncio.sleep(5)
-            await asyncio.sleep(5)
+            await asyncio.sleep(100)
         elif url == f"https://chaturbate.com/api/more_like/{model_id}/":
-            for i in range(16):
-                if datetime.datetime.now() >= bot_work_time_minutes or get_cancel_flag():
-                    break
-                await asyncio.sleep(5)
-            await asyncio.sleep(5)
+            await asyncio.sleep(90)
         elif url == f"https://chaturbate.com/api/ts/games/current/room/{model_id}":
-            for i in range(7):
-                if datetime.datetime.now() >= bot_work_time_minutes or get_cancel_flag():
-                    break
-                await asyncio.sleep(5)
-            await asyncio.sleep(7)
+            await asyncio.sleep(47)
         elif url == f"https://chaturbate.com/api/biocontext/{model_id}/?":
-            for i in range(5):
-                if datetime.datetime.now() >= bot_work_time_minutes or get_cancel_flag():
-                    break
-            await asyncio.sleep(7)
+            await asyncio.sleep(32)
 
 
 async def make_request(credentials, proxy_url, bot_work_time_minutes, scheduled_task, model_id):
-    current_time = datetime.datetime.now()
+    try:
+        print('shed task', scheduled_task.task_id)
+        # await send_increment_message(task_id=scheduled_task.task_id)
+    except Exception as e:
+        print("EBSOCKET CONN ERR", e)
+    current_time = datetime.now()
     time_until_bot_work = bot_work_time_minutes - current_time
     seconds_until_bot_work = time_until_bot_work.total_seconds()
     def get_cancel_flag():
