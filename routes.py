@@ -85,7 +85,7 @@ async def send_message(task_id: str, message: str):
 
 @userRouter.post("/connect-websocket/")
 async def connect_websocket(task_id: str):
-    uri = f"ws://localhost:8000/ws/{task_id}"
+    uri = f"ws://requests-bot-serv-byco.onrender.com/ws/{task_id}"
     async def websocket_client():
         async with websockets.connect(uri) as websocket:
             # await websocket.send("Hello Server!")
