@@ -36,6 +36,31 @@ class TaskSchema(BaseModel):
         orm_mode = True
         
         
+class ProxySchema(BaseModel):
+    id: int
+    proxy_host: Optional[str]=None
+    proxy_port: Optional[str]=None
+    proxy_username: Optional[str]=None
+    proxy_password: Optional[str]=None
+    proxy_user_id: Optional[str]=None
+    proxy_datetime: Optional[datetime]=None
+    
+    class Config:
+        orm_mode = True
+        
+        
+class AccountSchema(BaseModel):
+    id: int
+    acc_login: Optional[str]=None
+    acc_password: Optional[str]=None
+    acc_cookie: Optional[str]=None
+    acc_user_id: Optional[str]=None
+    acc_datetime: Optional[datetime]=None
+    
+    class Config:
+        orm_mode = True
+        
+        
 class Token(BaseModel):
     access_token: str
     token_type: str

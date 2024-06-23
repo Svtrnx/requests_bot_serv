@@ -1,7 +1,8 @@
 from sqlalchemy.orm import sessionmaker, Session
-from model import UserTable, TaskTable
+from model import UserTable, TaskTable, ProxyTable, AccountTable
 from connection import engine
 import schema
+from typing import List, Union
 
 
 def get_user_only_by_username(db: Session, username: str):
@@ -66,3 +67,84 @@ def create_task_func(db: Session, task_reg: schema.TaskSchema):
     except Exception as e:
         db.rollback()
         return f"Error to create task: {e}"
+
+
+def create_proxy_list(db: Session, proxy_media: List[schema.ProxySchema]):
+	new_proxies = [
+		ProxyTable(
+			proxy_username=proxy.proxy_username,
+			proxy_password=proxy.proxy_password,
+			proxy_host=proxy.proxy_host,
+			proxy_port=proxy.proxy_port,
+			proxy_user_id=proxy.proxy_user_id,
+            proxy_datetime=proxy.proxy_datetime,
+		)
+		for proxy in proxy_media
+	]
+	db.add_all(new_proxies)
+	db.commit()
+ 
+def get_proxy_list(db: Session, username: str):
+    results = db.query(ProxyTable).filter(ProxyTable.proxy_user_id == username).all()
+
+    db.close()
+
+    return results
+
+def delete_proxy(db: Session, proxy_list: List[str], user: str, delete_all_user_proxies: bool = False) -> Union[dict, None]:
+    try:
+        if delete_all_user_proxies:
+            db.query(ProxyTable).filter(ProxyTable.proxy_user_id == user).delete(synchronize_session=False)
+        else:
+            proxy_ids = [int(proxy_id) for proxy_id in proxy_list]
+            db.query(ProxyTable).filter(ProxyTable.id.in_(proxy_ids), ProxyTable.proxy_user_id == user).delete(synchronize_session=False)
+        
+        db.commit()
+        
+    except Exception as e:
+        return {f"Error deleting proxies: {e}"}
+    
+    
+def create_account_list(db: Session, account_media: List[schema.AccountSchema]):
+	new_accounts = [
+		AccountTable(
+			acc_login=account.acc_login,
+			acc_password=account.acc_password,
+			acc_cookie=account.acc_cookie,
+			acc_user_id=account.acc_user_id,
+			acc_datetime=account.acc_datetime,
+		)
+		for account in account_media
+	]
+	db.add_all(new_accounts)
+	db.commit()
+ 
+ 
+def get_accounts_list(db: Session, username: str):
+    results = db.query(AccountTable).filter(AccountTable.acc_user_id == username).all()
+
+    db.close()
+
+    return results
+
+def delete_account(db: Session, account_list: List[str], user: str, delete_all_user_accounts: bool = False) -> Union[dict, None]:
+    try:
+        if delete_all_user_accounts:
+            db.query(AccountTable).filter(AccountTable.acc_user_id == user).delete(synchronize_session=False)
+        else:
+            account_ids = [int(account_ids) for account_ids in account_list]
+            db.query(AccountTable).filter(AccountTable.id.in_(account_ids), AccountTable.acc_user_id == user).delete(synchronize_session=False)
+        
+        db.commit()
+        
+    except Exception as e:
+        return {f"Error deleting proxies: {e}"}
+    
+def delete_account_by_username(db: Session, account_list: List[str], user: str):
+    try:
+        db.query(AccountTable).filter(AccountTable.acc_login.in_(account_list), AccountTable.acc_user_id == user).delete(synchronize_session=False)
+        
+        db.commit()
+        
+    except Exception as e:
+        return {f"Error deleting proxies: {e}"}

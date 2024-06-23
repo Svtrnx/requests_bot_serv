@@ -4,6 +4,7 @@ from fastapi import Form
 from pydantic import BaseModel
 import asyncio
 from datetime import datetime
+from typing import List
 
 Base = declarative_base()
 
@@ -34,6 +35,28 @@ class TaskTable(Base):
     task_datetime = Column(DateTime)
     threads_count = Column(Integer)
     task_work = Column(Integer)
+    
+class ProxyTable(Base):
+    __tablename__ = 'proxy'
+
+    id = Column(Integer, primary_key=True)
+    proxy_host = Column(String)
+    proxy_port = Column(String)
+    proxy_username = Column(String)
+    proxy_password = Column(String)
+    proxy_user_id = Column(String)
+    proxy_datetime = Column(DateTime)
+    
+    
+class AccountTable(Base):
+    __tablename__ = 'accounts'
+
+    id = Column(Integer, primary_key=True)
+    acc_login = Column(String)
+    acc_password = Column(String)
+    acc_cookie = Column(String)
+    acc_user_id = Column(String)
+    acc_datetime = Column(DateTime, default=datetime.now)
     
     
 class UserRegRequestForm:

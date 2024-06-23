@@ -6,19 +6,23 @@ from invoke_requests import main, make_request
 import json
 from typing import Dict, List, Deque
 from collections import deque
-from requests import create_user, create_task_func
+from requests import create_user, delete_account, delete_account_by_username, get_accounts_list, create_task_func, create_account_list, create_proxy_list, get_proxy_list, delete_proxy
 from connection import get_db
 from datetime import datetime, timedelta
 import model
+from bs4 import BeautifulSoup
+import aiohttp
 import random
 from schema import Token
 import string
 import userController
 import websockets
 from authSecurity import create_access_token, get_current_user
+from fake_useragent import UserAgent
 from dotenv import load_dotenv
 from config import ACCESS_TOKEN_EXPIRE_MINUTES
 import logging
+
 
 load_dotenv()
 
@@ -84,7 +88,7 @@ async def connect_websocket(task_id: str):
     uri = f"ws://localhost:8000/ws/{task_id}"
     async def websocket_client():
         async with websockets.connect(uri) as websocket:
-            await websocket.send("Hello Server!")
+            # await websocket.send("Hello Server!")
             response = await websocket.recv()
             print(f"Received message from server: {response}")
     asyncio.create_task(websocket_client())
@@ -95,21 +99,24 @@ async def connect_websocket(task_id: str):
 def generate_random_id(length=6):
     return ''.join(random.choices(string.ascii_letters, k=length))
 
-async def read_proxies_from_file(filename):
-    proxies = []
-    try:
-        with open(filename, 'r') as file:
-            for line in file:
-                proxies.append(line.strip())
-    except FileNotFoundError:
-        print(f"File {filename} dont found.")
-    return proxies
-
 
 #############################################################################
-async def perform_custom_task(task_id, delay, bot_work_time, scheduled_task, model_id, num_tasks, cool_down_tasks):
+async def perform_custom_task(task_id, delay, bot_work_time, scheduled_task, model_id, num_tasks, cool_down_tasks, db):
     try:
-        print(scheduled_task.username)
+        accounts_list = get_accounts_list(db=db, username=scheduled_task.username)
+        proxy_list = get_proxy_list(db=db, username=scheduled_task.username)
+        
+        cookies = []
+        for cookie in accounts_list:
+            formatted_cookie = f"{cookie.acc_cookie}"
+            cookies.append(formatted_cookie)
+        print(cookies)
+        
+        proxies = []
+        for proxy in proxy_list:
+            formatted_proxy = f"{proxy.proxy_username}:{proxy.proxy_password}@{proxy.proxy_host}:{proxy.proxy_port}"
+            proxies.append(formatted_proxy)
+        print(proxies)
         user = scheduled_task.username
         # await asyncio.sleep(3)
         # await send_message(task_id=task_id, message='123')
@@ -125,33 +132,35 @@ async def perform_custom_task(task_id, delay, bot_work_time, scheduled_task, mod
 
             # websocket = await websockets.connect(f'ws://localhost:8000/ws/{task_id}')
             await update_task_status(task_id, 'active')
-            try:
-                with open('reserv.json', 'r') as file:
-                    data = json.load(file)
-            except FileNotFoundError:
-                print("File not found")
-                data = []
+            # try:
+            #     with open('reserv.json', 'r') as file:
+            #         data = json.load(file)
+            # except FileNotFoundError:
+            #     print("File not found")
+            #     data = []
 
-            if isinstance(data, list):
-                print('Total accounts: ', len(data))
+            if isinstance(cookies, list):
+                print('Total accounts: ', len(cookies))
 
-            credentials_data = await main()
+            # credentials_data = await main()
 
-            if not credentials_data:
-                return
+            # if not credentials_data:
+            #     return
 
             cool_down = cool_down_tasks
             num_tasks_ = num_tasks
 
-            proxies = await read_proxies_from_file('proxy.txt')
-            if not proxies:
-                print("Failed to load the proxy from the file.")
-                return
+            # proxies = await read_proxies_from_file('proxy.txt')
+            # if not proxies:
+            #     print("Failed to load the proxy from the file.")
+            #     return
+            print(cookies)
             current_iteration = 0
             tasks = []
             for i in range(num_tasks_):
                 proxy = proxies[i % len(proxies)]
-                task = asyncio.create_task(make_request(credentials_data[i], proxy, bot_work_time_minutes, scheduled_task, model_id))
+                print('cookies[i]', cookies[i])
+                task = asyncio.create_task(make_request(cookies[i], proxy, bot_work_time_minutes, scheduled_task, model_id))
                 tasks.append(task)
                 current_iteration += 1
                 await send_message(task_id=user, message=f'{task_id}:{current_iteration}')
@@ -164,8 +173,19 @@ async def perform_custom_task(task_id, delay, bot_work_time, scheduled_task, mod
             for task in tasks:
                 await task 
         print(f"Execution of task {task_id} completed")
-        info_cancel = await cancel_task(task_id)
-        print(info_cancel)
+        # info_cancel = await cancel_task(task_id)
+        # print(info_cancel)
+        scheduled_task.cancel_flag.set()
+        form_data = model.TaskRegRequestForm(
+            task_status="deleted",
+            task_id=scheduled_task.task_id,
+            task_delay=0,
+            task_user=scheduled_task.username,
+            task_datetime=datetime.now(),
+            threads_count=0,
+            task_work=0
+        )
+        await create_task(db=db, form_data=form_data)
     except Exception as e:
         print(f"Task error {task_id}: {e}")
 
@@ -228,22 +248,22 @@ async def get_task_status(task_id: str):
 async def schedule_task(request: model.ScheduleTaskRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db), current_user: model.UserTable = Depends(get_current_user)):
     if current_user.link_pinned != None:
         if current_user.link_pinned != request.streamer_id:
-            return {'Invalid streamer id'}
+            raise HTTPException(status_code=400, detail="Invalid streamer id, you have limited access")
     
     active_tasks = await get_active_tasks(current_user)
 
     if len(active_tasks) >= current_user.application_count:
-        return {'You have been reached the applications limit'}
+        raise HTTPException(status_code=400, detail="You have reached the applications limit")  
     
     total_threads_count = sum(task["threads_count"] for task in active_tasks)
     if total_threads_count + request.num_tasks > current_user.thread_count or request.num_tasks > current_user.thread_count:
-        return {'You have been reached the threads limit'}
+        raise HTTPException(status_code=400, detail="You have reached the threads limit")
 
     task_id = generate_random_id()
     threads_count_status = 0
     scheduled_task = model.ScheduledTask(task_id, current_user.username, request.num_tasks, request.streamer_id, "scheduled", request.delay, datetime.now(), threads_count_status)
     scheduled_tasks[task_id] = scheduled_task
-    background_tasks.add_task(perform_custom_task, task_id, request.delay, request.bot_work_time, scheduled_task, request.streamer_id, request.num_tasks, request.cool_down_tasks)
+    background_tasks.add_task(perform_custom_task, task_id, request.delay, request.bot_work_time, scheduled_task, request.streamer_id, request.num_tasks, request.cool_down_tasks, db)
     form_data = model.TaskRegRequestForm(
         task_status="scheduled",
         task_id=request.streamer_id,
@@ -275,9 +295,9 @@ async def cancel_task(task_id: str, db: Session = Depends(get_db), current_user:
             await create_task(db=db, form_data=form_data)
             return {"message": f"Task {task_id} canceled successfully"}
         else:
-            return {"error": "You do not have permission to cancel this task"}
+            raise HTTPException(status_code=400, detail="You do not have permission to cancel this task")
     else:
-        return {"error": "Task with this ID was not found"}
+        raise HTTPException(status_code=400, detail="Task with this ID was not found")
 
     
     
@@ -342,11 +362,165 @@ async def create_task(db: Session = Depends(get_db), form_data: model.TaskRegReq
     return {'data': task_reg}
 
 
-# @userRouter.get('/get_warming_links')
-# def get_warming_links_function(current_user_hwid: str, unique_id: str, username: str, db: Session = Depends(get_db)):
-#     user_hwid = query_tiktok_table_check_auth(current_user_hwid)
-#     if user_hwid is None:
-#         raise HTTPException(status_code=311, detail="Autentication failed")
-#     else:
-#         warming_links = query_tiktok_warming_links(username=username, unique_id=unique_id)
-#         return {"warming_links": warming_links}	
+@userRouter.post('/create-proxy')
+def create_proxy_func(proxy_list: List[str] = Body(...), db: Session = Depends(get_db), current_user: model.UserTable = Depends(get_current_user)):
+    try:
+        new_proxies = [
+            model.ProxyTable(
+                proxy_host=proxy.split(':')[0],
+                proxy_port=proxy.split(':')[1],
+                proxy_username=proxy.split(':')[2],
+                proxy_password=proxy.split(':')[3],
+                proxy_user_id=current_user.username,
+                proxy_datetime=datetime.now()
+            )
+            for proxy in proxy_list
+        ]
+        create_proxy_list(db=db, proxy_media=new_proxies)
+        return {'status': 'success'}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error: {e}")
+    
+    
+@userRouter.get('/get-proxy-list')
+def get_proxy_list_func(db: Session = Depends(get_db), current_user: model.UserTable = Depends(get_current_user)):
+    proxy = get_proxy_list(db=db, username=current_user.username)
+    return proxy
+
+
+@userRouter.delete("/delete-proxy")
+async def delete_proxy_func(proxy_list: List[str] = Body(...), db: Session = Depends(get_db), current_user: model.UserTable = Depends(get_current_user)):
+    try:
+        print(proxy_list)
+        if "all" in proxy_list:
+            print("The proxy_list array contains the value 'all'")
+            delete_proxy(db=db, proxy_list=proxy_list, user=current_user.username, delete_all_user_proxies=True)
+        else:
+            print("The proxy_list array does not contain the value 'all'")
+            delete_proxy(db=db, proxy_list=proxy_list, user=current_user.username, delete_all_user_proxies=False)
+            
+  
+        return {'status': 'successfully deleted proxy'}
+    
+    except HTTPException as e:
+        return {"error": str(e)}
+    
+
+@userRouter.post('/create-account')
+def create_account_func(acccount_list: List[dict] = Body(...), db: Session = Depends(get_db), current_user: model.UserTable = Depends(get_current_user)):
+    try:
+        new_accounts = [
+            model.AccountTable(
+                acc_login=account['acc_login'],
+                acc_password=account['acc_password'],
+                acc_cookie=account['acc_cookie'],
+                acc_user_id=current_user.username,
+                acc_datetime=datetime.now(),
+            )
+            for account in acccount_list
+        ]
+        create_account_list(db=db, account_media=new_accounts)
+        return {'status': 'success'}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error: {e}")
+    
+
+@userRouter.get('/get-accounts-list')
+def get_accounts_list_func(db: Session = Depends(get_db), current_user: model.UserTable = Depends(get_current_user)):
+    account = get_accounts_list(db=db, username=current_user.username)
+    return account
+
+
+@userRouter.delete("/delete-account")
+async def delete_account_func(account_list: List[str] = Body(...), db: Session = Depends(get_db), current_user: model.UserTable = Depends(get_current_user)):
+    try:
+        print(account_list)
+        if "all" in account_list:
+            print("The account_list array contains the value 'all'")
+            delete_account(db=db, account_list=account_list, user=current_user.username, delete_all_user_accounts=True)
+        else:
+            print("The proxy_list array does not contain the value 'all'")
+            delete_account(db=db, account_list=account_list, user=current_user.username, delete_all_user_accounts=False)
+            
+  
+        return {'status': 'successfully deleted accounts'}
+    
+    except HTTPException as e:
+        return {"error": str(e)}
+    
+
+async def make_request_check(session, sessionid, username, proxy_url):
+    try:
+        ua = UserAgent()
+        headers = {
+            "x-requested-with": "XMLHttpRequest",
+            "Referer": "https://chaturbate.com",
+            "Referrer-Policy": "strict-origin-when-cross-origin",
+            "User-Agent": ua.random
+        }
+        cookies = {"sessionid": sessionid}
+        url = "https://chaturbate.com"
+        async with session.get(url, headers=headers, cookies=cookies, proxy=f"socks5://{proxy_url}") as response:
+            result = await response.text() 
+
+            soup = BeautifulSoup(result, 'html.parser')
+
+            found_variables = soup.find_all(string=lambda text: username.lower() in text.lower())
+
+            if found_variables:
+                return {"username": username, 'sessionid': sessionid}
+    except Exception as e:
+        print(f"error in make_request_check: {e}")
+    
+async def perform_custom_check(proxies, cookies, usernames):
+    try:
+
+        tasks = []
+        async with aiohttp.ClientSession() as session:
+            for i in range(len(cookies)):
+                proxy = proxies[i % len(proxies)]
+                sessionid = cookies[i]
+                username = usernames[i]
+                task = asyncio.create_task(make_request_check(session, sessionid, username, proxy))
+                tasks.append(task)
+
+            results = await asyncio.gather(*tasks)
+            return results
+    except Exception as e:
+        print(f"error : {e}")
+
+@userRouter.get("/quick-check-validation")
+def get_index(db: Session = Depends(get_db), current_user: model.UserTable = Depends(get_current_user)):
+    proxy_list = get_proxy_list(db=db, username=current_user.username)
+    accounts_list = get_accounts_list(db=db, username=current_user.username)
+    
+    formatted_proxies = []
+    for proxy in proxy_list:
+        formatted_proxy = f"{proxy.proxy_username}:{proxy.proxy_password}@{proxy.proxy_host}:{proxy.proxy_port}"
+        formatted_proxies.append(formatted_proxy)
+    
+    formatted_accounts = []
+    for account in accounts_list:
+        formatted_account = f"{account.acc_login}"
+        formatted_accounts.append(formatted_account)
+        
+    formatted_cookies = []
+    for cookie in accounts_list:
+        formatted_cookie = f"{cookie.acc_cookie}"
+        formatted_cookies.append(formatted_cookie)
+    # return proxy
+    
+    results = asyncio.run(perform_custom_check(formatted_proxies, formatted_cookies, formatted_accounts))
+    # print(results)
+    usernames_in_results = [result['username'] for result in results if result]
+
+    not_in_results = [account for account in formatted_accounts if account not in usernames_in_results]
+    
+    if not_in_results:
+        print(not_in_results)
+        delete_account_by_username(db, not_in_results, current_user.username)
+        return not_in_results
+    else:
+        return []
+
+    # return {"res": results}

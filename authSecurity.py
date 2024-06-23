@@ -34,6 +34,11 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
             detail="Invalid authentication credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    if datetime.now() >= user.sub_end:
+        raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Subscription expired!",
+        )
     if user.username != payload.get("sub"):
         raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,

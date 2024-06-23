@@ -117,21 +117,25 @@ def cleanup_memory():
 
 async def fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag, bot_work_time_minutes, model_id):
     while True:
+        # formatted_cookies = cookies[0]
+        # print('fetch data cookies:', formatted_cookies)
         
         if datetime.now() >= bot_work_time_minutes or get_cancel_flag():
+            time.sleep(random.randint(60 * 2, 60 * 7))
             break
         try:
             async with session.get(url, headers=headers, cookies=cookies, proxy=f"socks5://{proxy_url}") as response:
                 if response.status == 200:
                     data = await response.json()
-                    # print(f"{url}:")
+                    print(f"{url}:")
                     # print(data)
                 else:
                     # print(f"Error: {response.status} for URL: {url}")
                     pass
             
         except Exception as e:
-            print(f"Exception occurred", url, e)
+            # print(f"Exception occurred", url, e)
+            pass
         if url == f"https://chaturbate.com/push_service/room_user_count/{model_id}/?presence_id={presence_id}":
             await asyncio.sleep(60)
         elif url == f"https://chaturbate.com/api/panel_context/{model_id}/":
@@ -185,7 +189,22 @@ async def make_request(credentials, proxy_url, bot_work_time_minutes, scheduled_
         "User-Agent": ua.random
     }
 
-    cookies = {cookie['name']: cookie['value'] for cookie in credentials['cookies_trnsl']}
+    cookies = {"sessionid": credentials}
+    # {cookie['name']: cookie['value'] for cookie in credentials['cookies_trnsl']}
+    # cookies = {
+    #     "name": "sessionid",
+    #     "value": credentials,
+    #     "domain": ".chaturbate.com",
+    #     "path": "/",
+    #     "expires": -1,
+    #     "size": 41,
+    #     "httpOnly": True,
+    #     "secure": True,
+    #     "session": True,
+    #     "priority": "Medium",
+    #     "sameParty": False,
+    #     "sourceScheme": "Secure"
+    #   },
     
     urls_and_intervals = [
         (f"https://chaturbate.com/push_service/room_user_count/{model_id}/?presence_id={presence_id}"),
