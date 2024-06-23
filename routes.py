@@ -494,33 +494,34 @@ def get_index(db: Session = Depends(get_db), current_user: model.UserTable = Dep
     proxy_list = get_proxy_list(db=db, username=current_user.username)
     accounts_list = get_accounts_list(db=db, username=current_user.username)
     
-    formatted_proxies = []
-    for proxy in proxy_list:
-        formatted_proxy = f"{proxy.proxy_username}:{proxy.proxy_password}@{proxy.proxy_host}:{proxy.proxy_port}"
-        formatted_proxies.append(formatted_proxy)
-    
-    formatted_accounts = []
-    for account in accounts_list:
-        formatted_account = f"{account.acc_login}"
-        formatted_accounts.append(formatted_account)
+    if proxy_list and accounts_list:
+        formatted_proxies = []
+        for proxy in proxy_list:
+            formatted_proxy = f"{proxy.proxy_username}:{proxy.proxy_password}@{proxy.proxy_host}:{proxy.proxy_port}"
+            formatted_proxies.append(formatted_proxy)
         
-    formatted_cookies = []
-    for cookie in accounts_list:
-        formatted_cookie = f"{cookie.acc_cookie}"
-        formatted_cookies.append(formatted_cookie)
-    # return proxy
-    
-    results = asyncio.run(perform_custom_check(formatted_proxies, formatted_cookies, formatted_accounts))
-    # print(results)
-    usernames_in_results = [result['username'] for result in results if result]
+        formatted_accounts = []
+        for account in accounts_list:
+            formatted_account = f"{account.acc_login}"
+            formatted_accounts.append(formatted_account)
+            
+        formatted_cookies = []
+        for cookie in accounts_list:
+            formatted_cookie = f"{cookie.acc_cookie}"
+            formatted_cookies.append(formatted_cookie)
+        # return proxy
+        
+        results = asyncio.run(perform_custom_check(formatted_proxies, formatted_cookies, formatted_accounts))
+        # print(results)
+        usernames_in_results = [result['username'] for result in results if result]
 
-    not_in_results = [account for account in formatted_accounts if account not in usernames_in_results]
-    
-    if not_in_results:
-        print(not_in_results)
-        delete_account_by_username(db, not_in_results, current_user.username)
-        return not_in_results
-    else:
-        return []
+        not_in_results = [account for account in formatted_accounts if account not in usernames_in_results]
+        
+        if not_in_results:
+            print(not_in_results)
+            delete_account_by_username(db, not_in_results, current_user.username)
+            return not_in_results
+        else:
+            return []
 
     # return {"res": results}
