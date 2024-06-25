@@ -134,3 +134,29 @@ class TaskRegRequestForm:
         self.task_datetime = task_datetime
         self.threads_count = threads_count
         self.task_work = task_work
+
+class UpdateUserRequestForm:
+	
+    def __init__(
+        self,
+        username: str = Form(),
+        key: str = Form(default=None),
+        hwid: str = Form(default=None),
+        sub_start: datetime = Form(default=None),
+        sub_end: datetime = Form(default=None),
+        role: str = Form(default=None),
+        freezed: bool = Form(default=False),
+        thread_count: int = Form(default=None),
+        application_count: int = Form(default=None),
+        link_pinned: str = Form(default=None),
+    ):
+        self.username = username
+        self.key = key
+        self.hwid = hwid
+        self.sub_start = sub_start
+        self.sub_end = sub_end
+        self.role = role
+        self.freezed = freezed
+        self.thread_count = thread_count
+        self.application_count = application_count
+        self.link_pinned = link_pinned

@@ -1,8 +1,11 @@
 from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy import desc
 from model import UserTable, TaskTable, ProxyTable, AccountTable
 from connection import engine
 import schema
 from typing import List, Union
+from fastapi import HTTPException
+from sqlalchemy.exc import SQLAlchemyError
 
 
 def get_user_only_by_username(db: Session, username: str):
@@ -31,14 +34,16 @@ def get_user_by_username(db: Session, username: str, user_key: str, hwid: str):
 def create_user(db: Session, user_reg: schema.UserSchema):
     try:
         new_user_reg = UserTable(
-            username        =  user_reg.username,
-            key             =  user_reg.key,
-            hwid            =  user_reg.hwid,
-            link_pinned     =  user_reg.link_pinned,
-            sub_start       =  user_reg.sub_start,
-            sub_end         =  user_reg.sub_end,
-            role            =  user_reg.role,
-            freezed         =  user_reg.freezed, 
+            username            =  user_reg.username,
+            key                 =  user_reg.key,
+            hwid                =  user_reg.hwid,
+            thread_count        =  user_reg.thread_count,
+            application_count   =  user_reg.application_count,
+            link_pinned         =  user_reg.link_pinned,
+            sub_start           =  user_reg.sub_start,
+            sub_end             =  user_reg.sub_end,
+            role                =  user_reg.role,
+            freezed             =  user_reg.freezed, 
         )
         db.add(new_user_reg)
         db.commit()
@@ -164,10 +169,30 @@ def take_users(db: Session, username: str):
 
 def delete_user(db: Session, user_id: str, user: str):
     try:
+        user_to_delete = db.query(UserTable).filter(UserTable.id == user_id).first()
+
+        if user_to_delete is None:
+            return "User not found"
+
+        if user_to_delete.role == "admin":
+            raise HTTPException(status_code=400, detail="Access denied")
+
         db.query(UserTable).filter((UserTable.id == user_id) & (UserTable.username != user)).delete()
 
         db.commit()
+        return "User deleted successfully"
 
-    except Exception as e:
+    except SQLAlchemyError as e:
         db.rollback()
-        return f"Error deleting media: {e}"
+        return f"Error deleting user: {e}"
+    
+    
+def get_tasks_list(db: Session, username: str):
+    results = db.query(TaskTable).filter(TaskTable.task_user == username)\
+                                 .order_by(desc(TaskTable.task_datetime))\
+                                 .limit(80)\
+                                 .all()
+
+    db.close()
+
+    return results

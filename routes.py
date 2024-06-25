@@ -6,7 +6,7 @@ from invoke_requests import main, make_request
 import json
 from typing import Dict, List, Deque
 from collections import deque
-from requests import create_user, delete_account, delete_user, take_users, delete_account_by_username, get_accounts_list, create_task_func, create_account_list, create_proxy_list, get_proxy_list, delete_proxy
+from requests import create_user, delete_account, get_tasks_list, get_user_only_by_username, delete_user, take_users, delete_account_by_username, get_accounts_list, create_task_func, create_account_list, create_proxy_list, get_proxy_list, delete_proxy
 from connection import get_db
 from datetime import datetime, timedelta
 import model
@@ -86,7 +86,7 @@ async def send_message(task_id: str, message: str):
 
 @userRouter.post("/connect-websocket/")
 async def connect_websocket(task_id: str):
-    uri = f"wss://requests-bot-serv-byco.onrender.com/ws/{task_id}"
+    uri = f"wss://https://extended-leia-kenzomd-c840e7ab.koyeb.app/ws/{task_id}"
     async def websocket_client():
         async with websockets.connect(uri) as websocket:
             # await websocket.send("Hello Server!")
@@ -176,17 +176,29 @@ async def perform_custom_task(task_id, delay, bot_work_time, scheduled_task, mod
         print(f"Execution of task {task_id} completed")
         # info_cancel = await cancel_task(task_id)
         # print(info_cancel)
-        scheduled_task.cancel_flag.set()
-        form_data = model.TaskRegRequestForm(
-            task_status="deleted",
-            task_id=scheduled_task.task_id,
-            task_delay=0,
-            task_user=scheduled_task.username,
-            task_datetime=datetime.now(),
-            threads_count=0,
-            task_work=0
-        )
-        await create_task(db=db, form_data=form_data)
+        if scheduled_task.cancel_flag.set():
+            form_data = model.TaskRegRequestForm(
+                task_status="deleted",
+                task_id=scheduled_task.task_id,
+                task_delay=0,
+                task_user=scheduled_task.username,
+                task_datetime=datetime.now(),
+                threads_count=0,
+                task_work=0
+            )
+            await create_task(db=db, form_data=form_data)
+        else:
+            form_data = model.TaskRegRequestForm(
+                task_status="active",
+                task_id=scheduled_task.task_id,
+                task_delay=0,
+                task_user=scheduled_task.username,
+                task_datetime=datetime.now(),
+                threads_count=0,
+                task_work=0
+            )
+            await create_task(db=db, form_data=form_data)
+            scheduled_task.cancel_flag.set()
     except Exception as e:
         print(f"Task error {task_id}: {e}")
 
@@ -281,8 +293,8 @@ async def schedule_task(request: model.ScheduleTaskRequest, background_tasks: Ba
                 raise HTTPException(status_code=400, detail="This time is already busy!")
     
     
-    total_threads_count = sum(task["threads_count"] for task in active_tasks)
-    if total_threads_count + request.num_tasks > current_user.thread_count or request.num_tasks > current_user.thread_count:
+    # total_threads_count = sum(task["threads_count"] for task in active_tasks)
+    if request.num_tasks > current_user.thread_count:
         raise HTTPException(status_code=400, detail="You have reached the threads limit")
 
     task_id = generate_random_id()
@@ -331,7 +343,6 @@ async def cancel_task(task_id: str, db: Session = Depends(get_db), current_user:
 async def reg_account(db: Session = Depends(get_db), form_data: model.UserRegRequestForm = Depends(), current_user: model.UserTable = Depends(get_current_user)):
     if current_user.role == 'admin':
         current_time = datetime.now()
-        print(current_time)
         new_time = current_time + timedelta(days=form_data.sub_end_time)
         new_user_reg = model.UserTable(
             username=form_data.username,
@@ -573,32 +584,79 @@ async def delete_user_func(user_id: str = Body(embed=True), db: Session = Depend
     
             return {'status': 'successfully deleted'}
         except Exception as e:
-            print("Error deleting media")
-            return f"Error deleting media: {e}"
+            raise HTTPException(status_code=400, detail="Access denied")
     else: 
         raise HTTPException(status_code=400, detail="Access denied")
     
     
-# @userRouter.patch('/update-account')
-# def update_account_function(current_user_hwid: str = Body(embed=True), unique_id: str = Body(embed=True), username: str = Body(embed=True), completed: bool = Body(embed=True), db: Session = Depends(get_db)):
-#     user_hwid = query_tiktok_table_check_auth(current_user_hwid)
-#     if user_hwid is None:
-#         raise HTTPException(status_code=311, detail="Autentication failed")
-#     else:
-#         db_accounts = db.query(model.TikTokTableWarming).filter(
-#             model.TikTokTableWarming.username == username,
-#             model.TikTokTableWarming.unique_id == unique_id,
-#         ).all()
 
-#         if db_accounts:
-#             response = db.query(model.TikTokTableWarming).filter(
-#                 model.TikTokTableWarming.username == username,
-#                 model.TikTokTableWarming.unique_id == unique_id,
-#             ).update({model.TikTokTableWarming.completed: completed}, synchronize_session=False)
+@userRouter.patch("/update-user")
+async def update_user_func(
+    form_data: model.UpdateUserRequestForm = Depends(),
+    db: Session = Depends(get_db),
+    current_user: model.UserTable = Depends(get_current_user)
+):
+    if current_user.role == 'admin':
+        db_user = get_user_only_by_username(db=db, username=form_data.username)
+        if not db_user:
+            raise HTTPException(status_code=404, detail="User not found")
+        print(db_user.role)
 
-#             db.commit()
+        # if form_data.username:
+        #     db_user.username = form_data.username
+        if form_data.key:
+            db_user.key = form_data.key
+        if form_data.hwid:
+            db_user.hwid = form_data.hwid
+        if form_data.sub_start:
+            db_user.sub_start = form_data.sub_start
+        if form_data.sub_end:
+            db_user.sub_end = form_data.sub_end
+        if form_data.role:
+            db_user.role = form_data.role
+        if form_data.freezed:
+            db_user.freezed = form_data.freezed
+        if form_data.thread_count:
+            db_user.thread_count = form_data.thread_count
+        if form_data.application_count:
+            db_user.application_count = form_data.application_count
+        if form_data.link_pinned:
+            db_user.link_pinned = form_data.link_pinned
+        
 
-#             return {"warming_links_updated": response}
+        db.commit()
+        db.refresh(db_user)
+        return {"user": db_user}
+    else: 
+        raise HTTPException(status_code=400, detail="Access denied")
+    
 
-#         else:
-#             return {"error": "warming link dont found"}
+@userRouter.get('/get-tasks-list')
+def get_tasks_list_func(username: str, db: Session = Depends(get_db), current_user: model.UserTable = Depends(get_current_user)):
+    if current_user.role == 'admin':
+        tasks = get_tasks_list(db=db, username=username)
+        return tasks
+    else: 
+        raise HTTPException(status_code=400, detail="Access denied")
+    
+    
+@userRouter.get("/all-active-tasks")
+async def get_all_active_tasks(current_user: model.UserTable = Depends(get_current_user)):
+    if current_user.role == 'admin':
+        active_tasks = []
+        for task_id, scheduled_task in scheduled_tasks.items():
+            if not scheduled_task.cancel_flag.is_set():
+                active_tasks.append({
+                    "task_id": task_id,
+                    "threads_count": scheduled_task.num_tasks,
+                    "username": scheduled_task.username,
+                    "streamer_id": scheduled_task.streamer_id,
+                    "task_delay": scheduled_task.task_delay,
+                    "creation_time": scheduled_task.creation_time,
+                    "end_time": scheduled_task.end_time,
+                    "threads_count_status": scheduled_task.threads_count_status,
+                    "status": scheduled_task.status
+                })
+        return active_tasks
+    else: 
+        raise HTTPException(status_code=400, detail="Access denied")
