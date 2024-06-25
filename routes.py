@@ -260,16 +260,25 @@ async def schedule_task(request: model.ScheduleTaskRequest, background_tasks: Ba
         new_task_status = 'scheduled'
     else:
         new_task_status = 'active'
-        
+    
+    print('active_tasks_with_status', active_tasks_with_status)
+    print('len(active_tasks_with_status)', len(active_tasks_with_status))
+    print('current_user', current_user.application_count)
+    check = False
+    if new_task_status == "scheduled" and len(active_tasks_with_status) >= current_user.application_count:
+        check = True
+    
     if new_task_status == "active" and len(active_tasks_with_status) >= current_user.application_count:
         raise HTTPException(status_code=400, detail="You have reached the applications limit")
-        
-    for task in active_tasks:
-        creation_time = task["creation_time"]
-        end_time = task["end_time"]
-        
-        if creation_time <= datetime.now() + timedelta(seconds=request.delay) <= end_time:
-            raise HTTPException(status_code=400, detail="This time is already busy!")
+    
+    if check == True:
+        print('check')
+        for task in active_tasks:
+            creation_time = task["creation_time"]
+            end_time = task["end_time"]
+            
+            if creation_time <= datetime.now() + timedelta(seconds=request.delay) <= end_time:
+                raise HTTPException(status_code=400, detail="This time is already busy!")
     
     
     total_threads_count = sum(task["threads_count"] for task in active_tasks)

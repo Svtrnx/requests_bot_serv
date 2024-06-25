@@ -127,7 +127,7 @@ async def fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag,
             async with session.get(url, headers=headers, cookies=cookies, proxy=f"socks5://{proxy_url}") as response:
                 if response.status == 200:
                     data = await response.json()
-                    print(f"{url}:")
+                    # print(f"{url}:")
                     # print(data)
                 else:
                     # print(f"Error: {response.status} for URL: {url}")
@@ -159,11 +159,11 @@ async def fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag,
 
 
 async def make_request(credentials, proxy_url, bot_work_time_minutes, scheduled_task, model_id):
-    try:
-        print('shed task', scheduled_task.task_id)
-        # await send_increment_message(task_id=scheduled_task.task_id)
-    except Exception as e:
-        print("EBSOCKET CONN ERR", e)
+    # try:
+    #     print('shed task', scheduled_task.task_id)
+    #     # await send_increment_message(task_id=scheduled_task.task_id)
+    # except Exception as e:
+    #     print("EBSOCKET CONN ERR", e)
     current_time = datetime.now()
     time_until_bot_work = bot_work_time_minutes - current_time
     seconds_until_bot_work = time_until_bot_work.total_seconds()
