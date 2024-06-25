@@ -6,7 +6,7 @@ from invoke_requests import main, make_request
 import json
 from typing import Dict, List, Deque
 from collections import deque
-from requests import create_user, delete_account, delete_account_by_username, get_accounts_list, create_task_func, create_account_list, create_proxy_list, get_proxy_list, delete_proxy
+from requests import create_user, delete_account, delete_user, take_users, delete_account_by_username, get_accounts_list, create_task_func, create_account_list, create_proxy_list, get_proxy_list, delete_proxy
 from connection import get_db
 from datetime import datetime, timedelta
 import model
@@ -22,7 +22,8 @@ from fake_useragent import UserAgent
 from dotenv import load_dotenv
 from config import ACCESS_TOKEN_EXPIRE_MINUTES
 import logging
-
+from config import DB_NAME, DB_HOST, DB_PORT, DB_USER, DB_PASS
+import time
 
 load_dotenv()
 
@@ -85,7 +86,7 @@ async def send_message(task_id: str, message: str):
 
 @userRouter.post("/connect-websocket/")
 async def connect_websocket(task_id: str):
-    uri = f"wss://requests-bot-serv-byco.onrender.com/ws/{task_id}"
+    uri = f"ws://localhost:8000/ws/{task_id}"
     async def websocket_client():
         async with websockets.connect(uri) as websocket:
             # await websocket.send("Hello Server!")
@@ -116,7 +117,7 @@ async def perform_custom_task(task_id, delay, bot_work_time, scheduled_task, mod
         for proxy in proxy_list:
             formatted_proxy = f"{proxy.proxy_username}:{proxy.proxy_password}@{proxy.proxy_host}:{proxy.proxy_port}"
             proxies.append(formatted_proxy)
-        print(proxies)
+        # print(proxies)
         user = scheduled_task.username
         # await asyncio.sleep(3)
         # await send_message(task_id=task_id, message='123')
@@ -154,7 +155,7 @@ async def perform_custom_task(task_id, delay, bot_work_time, scheduled_task, mod
             # if not proxies:
             #     print("Failed to load the proxy from the file.")
             #     return
-            print(cookies)
+            # print(cookies)
             current_iteration = 0
             tasks = []
             for i in range(num_tasks_):
@@ -207,6 +208,7 @@ async def get_active_tasks(current_user: model.UserTable = Depends(get_current_u
                 "streamer_id": scheduled_task.streamer_id,
                 "task_delay": scheduled_task.task_delay,
                 "creation_time": scheduled_task.creation_time,
+                "end_time": scheduled_task.end_time,
                 "threads_count_status": scheduled_task.threads_count_status,
                 "status": scheduled_task.status
             })
@@ -251,9 +253,24 @@ async def schedule_task(request: model.ScheduleTaskRequest, background_tasks: Ba
             raise HTTPException(status_code=400, detail="Invalid streamer id, you have limited access")
     
     active_tasks = await get_active_tasks(current_user)
-
-    if len(active_tasks) >= current_user.application_count:
-        raise HTTPException(status_code=400, detail="You have reached the applications limit")  
+    
+    active_tasks_with_status = [task for task in active_tasks if task.get("status") == "active"]
+    new_task_status = ''
+    if request.delay > 0:
+        new_task_status = 'scheduled'
+    else:
+        new_task_status = 'active'
+        
+    if new_task_status == "active" and len(active_tasks_with_status) >= current_user.application_count:
+        raise HTTPException(status_code=400, detail="You have reached the applications limit")
+        
+    for task in active_tasks:
+        creation_time = task["creation_time"]
+        end_time = task["end_time"]
+        
+        if creation_time <= datetime.now() + timedelta(seconds=request.delay) <= end_time:
+            raise HTTPException(status_code=400, detail="This time is already busy!")
+    
     
     total_threads_count = sum(task["threads_count"] for task in active_tasks)
     if total_threads_count + request.num_tasks > current_user.thread_count or request.num_tasks > current_user.thread_count:
@@ -261,7 +278,7 @@ async def schedule_task(request: model.ScheduleTaskRequest, background_tasks: Ba
 
     task_id = generate_random_id()
     threads_count_status = 0
-    scheduled_task = model.ScheduledTask(task_id, current_user.username, request.num_tasks, request.streamer_id, "scheduled", request.delay, datetime.now(), threads_count_status)
+    scheduled_task = model.ScheduledTask(task_id, current_user.username, request.num_tasks, request.streamer_id, "scheduled", request.delay, datetime.now(), datetime.now() + timedelta(seconds=request.delay), threads_count_status)
     scheduled_tasks[task_id] = scheduled_task
     background_tasks.add_task(perform_custom_task, task_id, request.delay, request.bot_work_time, scheduled_task, request.streamer_id, request.num_tasks, request.cool_down_tasks, db)
     form_data = model.TaskRegRequestForm(
@@ -302,21 +319,27 @@ async def cancel_task(task_id: str, db: Session = Depends(get_db), current_user:
     
     
 @userRouter.post('/create_reg_account')
-async def reg_account(db: Session = Depends(get_db), form_data: model.UserRegRequestForm = Depends()):
-    current_time = datetime.now()
-    print(current_time)
-    new_time = current_time + timedelta(days=form_data.sub_end_time)
-    new_user_reg = model.UserTable(
-        username=form_data.username,
-        key=form_data.key,
-        hwid=form_data.hwid,
-        sub_start=current_time,
-        sub_end=new_time,
-        role=form_data.role,
-        freezed=False
-    )
-    user_reg = create_user(db=db, user_reg=new_user_reg)
-    return {'data': user_reg}
+async def reg_account(db: Session = Depends(get_db), form_data: model.UserRegRequestForm = Depends(), current_user: model.UserTable = Depends(get_current_user)):
+    if current_user.role == 'admin':
+        current_time = datetime.now()
+        print(current_time)
+        new_time = current_time + timedelta(days=form_data.sub_end_time)
+        new_user_reg = model.UserTable(
+            username=form_data.username,
+            key=form_data.key,
+            hwid=form_data.hwid,
+            thread_count=form_data.thread_count,
+            application_count=form_data.application_count,
+            link_pinned=form_data.link_pinned,
+            sub_start=current_time,
+            sub_end=new_time,
+            role=form_data.role,
+            freezed=False
+        )
+        user_reg = create_user(db=db, user_reg=new_user_reg)
+        return {'data': user_reg}
+    else:
+        raise HTTPException(status_code=400, detail="Access denied")
 
 @userRouter.post('/signin', response_model=Token)
 async def signin_auth(response:Response, db: Session = Depends(get_db), form_data: model.OAuth2PasswordRequestFormSignin = Depends()):
@@ -419,7 +442,7 @@ def create_account_func(acccount_list: List[dict] = Body(...), db: Session = Dep
             )
             for account in acccount_list
         ]
-        create_account_list(db=db, account_media=new_accounts)
+        create_account_list(db=db, user=current_user.username, account_media=new_accounts)
         return {'status': 'success'}
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error: {e}")
@@ -495,6 +518,7 @@ def get_index(db: Session = Depends(get_db), current_user: model.UserTable = Dep
     accounts_list = get_accounts_list(db=db, username=current_user.username)
     
     if proxy_list and accounts_list:
+	
         formatted_proxies = []
         for proxy in proxy_list:
             formatted_proxy = f"{proxy.proxy_username}:{proxy.proxy_password}@{proxy.proxy_host}:{proxy.proxy_port}"
@@ -525,3 +549,47 @@ def get_index(db: Session = Depends(get_db), current_user: model.UserTable = Dep
             return []
 
     # return {"res": results}
+    
+@userRouter.get('/get-users')
+def get_users_func(db: Session = Depends(get_db), current_user: model.UserTable = Depends(get_current_user)):
+    if current_user.role == 'admin':
+        users = take_users(db=db, username=current_user.username)
+        return users
+    
+@userRouter.delete("/delete-user")
+async def delete_user_func(user_id: str = Body(embed=True), db: Session = Depends(get_db), current_user: model.UserTable = Depends(get_current_user)):
+    if current_user.role == 'admin':
+        try:
+            delete_user(db=db, user_id=user_id, user=current_user.username)
+    
+            return {'status': 'successfully deleted'}
+        except Exception as e:
+            print("Error deleting media")
+            return f"Error deleting media: {e}"
+    else: 
+        raise HTTPException(status_code=400, detail="Access denied")
+    
+    
+# @userRouter.patch('/update-account')
+# def update_account_function(current_user_hwid: str = Body(embed=True), unique_id: str = Body(embed=True), username: str = Body(embed=True), completed: bool = Body(embed=True), db: Session = Depends(get_db)):
+#     user_hwid = query_tiktok_table_check_auth(current_user_hwid)
+#     if user_hwid is None:
+#         raise HTTPException(status_code=311, detail="Autentication failed")
+#     else:
+#         db_accounts = db.query(model.TikTokTableWarming).filter(
+#             model.TikTokTableWarming.username == username,
+#             model.TikTokTableWarming.unique_id == unique_id,
+#         ).all()
+
+#         if db_accounts:
+#             response = db.query(model.TikTokTableWarming).filter(
+#                 model.TikTokTableWarming.username == username,
+#                 model.TikTokTableWarming.unique_id == unique_id,
+#             ).update({model.TikTokTableWarming.completed: completed}, synchronize_session=False)
+
+#             db.commit()
+
+#             return {"warming_links_updated": response}
+
+#         else:
+#             return {"error": "warming link dont found"}

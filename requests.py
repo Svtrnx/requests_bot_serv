@@ -34,6 +34,7 @@ def create_user(db: Session, user_reg: schema.UserSchema):
             username        =  user_reg.username,
             key             =  user_reg.key,
             hwid            =  user_reg.hwid,
+            link_pinned     =  user_reg.link_pinned,
             sub_start       =  user_reg.sub_start,
             sub_end         =  user_reg.sub_end,
             role            =  user_reg.role,
@@ -105,19 +106,25 @@ def delete_proxy(db: Session, proxy_list: List[str], user: str, delete_all_user_
         return {f"Error deleting proxies: {e}"}
     
     
-def create_account_list(db: Session, account_media: List[schema.AccountSchema]):
-	new_accounts = [
-		AccountTable(
-			acc_login=account.acc_login,
-			acc_password=account.acc_password,
-			acc_cookie=account.acc_cookie,
-			acc_user_id=account.acc_user_id,
-			acc_datetime=account.acc_datetime,
-		)
-		for account in account_media
-	]
-	db.add_all(new_accounts)
-	db.commit()
+def create_account_list(db: Session, user, account_media: List[schema.AccountSchema]):
+    accounts = get_accounts_list(db, user)
+    acc_logins = [account.acc_login for account in accounts]
+    
+
+    new_accounts = [
+        AccountTable(
+            acc_login=account.acc_login,
+            acc_password=account.acc_password,
+            acc_cookie=account.acc_cookie,
+            acc_user_id=account.acc_user_id,
+            acc_datetime=account.acc_datetime,
+        )
+        for account in account_media if account.acc_login not in acc_logins
+    ]
+
+    if new_accounts:
+        db.add_all(new_accounts)
+        db.commit()
  
  
 def get_accounts_list(db: Session, username: str):
@@ -148,3 +155,19 @@ def delete_account_by_username(db: Session, account_list: List[str], user: str):
         
     except Exception as e:
         return {f"Error deleting proxies: {e}"}
+    
+    
+def take_users(db: Session, username: str):
+
+    results = db.query(UserTable).filter(UserTable.username != username).all()
+    return results
+
+def delete_user(db: Session, user_id: str, user: str):
+    try:
+        db.query(UserTable).filter((UserTable.id == user_id) & (UserTable.username != user)).delete()
+
+        db.commit()
+
+    except Exception as e:
+        db.rollback()
+        return f"Error deleting media: {e}"

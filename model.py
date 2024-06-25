@@ -66,12 +66,18 @@ class UserRegRequestForm:
         username: str = Form(),
         key: str = Form(),
         hwid: str = Form(),
+        thread_count: int = Form(),
+        application_count: int = Form(),
+        link_pinned: str = Form(default=None),
         sub_end_time: int = Form(),
         role: str = Form()
     ):
         self.username = username
         self.key = key
         self.hwid = hwid
+        self.thread_count = thread_count
+        self.application_count = application_count
+        self.link_pinned = link_pinned
         self.sub_end_time = sub_end_time
         self.role = role
 
@@ -83,7 +89,7 @@ class ScheduleTaskRequest(BaseModel):
     cool_down_tasks: int
     
 class ScheduledTask:
-    def __init__(self, task_id: str, username: str, num_tasks: int, streamer_id: str, status: str, task_delay: int, creation_time: datetime, threads_count_status: int):
+    def __init__(self, task_id: str, username: str, num_tasks: int, streamer_id: str, status: str, task_delay: int, creation_time: datetime, end_time: datetime, threads_count_status: int):
         self.task_id = task_id
         self.username = username
         self.num_tasks = num_tasks
@@ -91,6 +97,7 @@ class ScheduledTask:
         self.status = status
         self.task_delay = task_delay 
         self.creation_time = creation_time 
+        self.end_time = end_time 
         self.threads_count_status = threads_count_status 
         self.cancel_flag = asyncio.Event()
         
