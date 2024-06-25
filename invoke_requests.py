@@ -121,7 +121,7 @@ async def fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag,
         # print('fetch data cookies:', formatted_cookies)
         
         if datetime.now() >= bot_work_time_minutes or get_cancel_flag():
-            time.sleep(random.randint(60 * 2, 60 * 7))
+            await asyncio.sleep(random.randint(60 * 2, 60 * 7))
             break
         try:
             async with session.get(url, headers=headers, cookies=cookies, proxy=f"socks5://{proxy_url}") as response:
