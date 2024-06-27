@@ -297,14 +297,19 @@ async def schedule_task(request: model.ScheduleTaskRequest, background_tasks: Ba
     if request.num_tasks > current_user.thread_count:
         raise HTTPException(status_code=400, detail="You have reached the threads limit")
 
-    print('request.delay', request.delay)
-    print('request.delay', request.bot_work_time)
-    print('timedelta(seconds=request.delay)', timedelta(seconds=request.delay))
-    print(datetime.now(timezone.utc) + timedelta(minutes=request.bot_work_time))
+
+    print(request.bot_work_time)
     end_time_ = datetime.now(timezone.utc) + timedelta(minutes=request.bot_work_time)
+    start_time_ = ''
+    if request.delay > 0:
+        start_time_ = datetime.now(timezone.utc) + timedelta(seconds=request.delay)
+        end_time_ = datetime.now(timezone.utc) + timedelta(minutes=request.bot_work_time) + timedelta(seconds=request.delay)
+    else:
+        start_time_ = datetime.now(timezone.utc)
+        end_time_ = datetime.now(timezone.utc) + timedelta(minutes=request.bot_work_time)
     task_id = generate_random_id()
     threads_count_status = 0
-    scheduled_task = model.ScheduledTask(task_id, current_user.username, request.num_tasks, request.streamer_id, "scheduled", request.delay, datetime.now(timezone.utc), end_time_, threads_count_status)
+    scheduled_task = model.ScheduledTask(task_id, current_user.username, request.num_tasks, request.streamer_id, "scheduled", request.delay, start_time_, end_time_, threads_count_status)
     scheduled_tasks[task_id] = scheduled_task
     background_tasks.add_task(perform_custom_task, task_id, request.delay, request.bot_work_time, scheduled_task, request.streamer_id, request.num_tasks, request.cool_down_tasks, db)
     form_data = model.TaskRegRequestForm(
@@ -462,7 +467,7 @@ async def fetch_data_cookies(account, proxy):
 
         # print(response.text())
         proxies = { 
-            "https" : proxy, 
+            "socks5" : proxy, 
         }
         response = await session.get("https://chaturbate.com/auth/login", impersonate="chrome110", proxies=proxies)
         
@@ -613,7 +618,7 @@ def get_index(db: Session = Depends(get_db), current_user: model.UserTable = Dep
     accounts_list = get_accounts_list(db=db, username=current_user.username)
     
     if proxy_list and accounts_list:
-	
+    
         formatted_proxies = []
         for proxy in proxy_list:
             formatted_proxy = f"{proxy.proxy_username}:{proxy.proxy_password}@{proxy.proxy_host}:{proxy.proxy_port}"
@@ -739,3 +744,108 @@ async def get_all_active_tasks(current_user: model.UserTable = Depends(get_curre
     else: 
         raise HTTPException(status_code=400, detail="Access denied")
     
+
+async def fetch_data_cookies_checker(account, proxy):
+    async with AsyncSession() as session:
+        ua = UserAgent()
+        usAgent = ua.random
+        username, password = account.split(':')
+        # session = requests.Session()
+
+        # print(response.text())
+        proxies = { 
+            "socks5" : proxy, 
+        }
+        response = await session.get("https://chaturbate.com/auth/login", impersonate="chrome110", proxies=proxies)
+        
+        # print(response.text)
+        csrf_token = ''
+        if response.status_code == 200:
+            html_content = response.content
+            soup = BeautifulSoup(html_content, 'html.parser')
+            csrf_token = soup.find('input', {'name': 'csrfmiddlewaretoken'}).get('value')
+            # print(csrf_token)
+            
+        else:
+            print(f'Failed to fetch login page. Status code: {response.status_code}')
+            
+            
+        url = 'https://chaturbate.com/auth/login/'
+        headers = {
+            'Referer': 'https://chaturbate.com/auth/login/',
+            'Referrer-Policy': 'strict-origin-when-cross-origin',
+            "User-Agent": usAgent
+        }
+        data = {
+            'next': '',
+            'csrfmiddlewaretoken': csrf_token,
+            'username': username,
+            'password': password
+        }
+
+        response = await session.post(url, headers=headers, data=data, impersonate="chrome110", proxies=proxies)
+
+        print(response)
+        
+        url = f'https://chaturbate.com/api/ts/tipping/token-stats/?room={username}&currentpage=&max_transaction_id=&cashpage=0'
+        response = await session.get(url, cookies=session.cookies, impersonate="chrome110", proxies=proxies)
+        
+        print(response)
+        print(response.json())
+        data = response.json()
+        if not data:
+            return {}
+     
+     
+        if 'transactions' in data:
+            transactions = data['transactions']
+            if transactions:
+                last_transaction_date = transactions[0]['date']
+                return {"acc_login": username, "acc_password": password, "type": 'transaction', "transaction": last_transaction_date}
+            else:
+                return {}
+        else:
+            if 'periods' in data:
+                periods = data['periods']
+                return {"acc_login": username, "acc_password": password, "type": 'default', "transaction": ""}
+            else:
+                return {}
+        
+        
+
+        # if response.status_code == 200:
+        #     return {"acc_login": username, "acc_password": password, 'acc_cookie': session.cookies.get('sessionid')}
+        # else:
+        #     print(f"Error to login {username}: {response.status_code}")
+
+async def main_checker_func_second(accounts, proxies):
+    tasks = []
+    for account, proxy in zip(accounts, proxies):
+        tasks.append(fetch_data_cookies_checker(account, proxy))
+
+    results = await asyncio.gather(*tasks)
+
+    return results    
+
+def sync_main_checker(accounts, proxies):
+    # asyncio.set_event_loop_policy(WindowsSelectorEventLoopPolicy())
+    results = [] 
+    all_results = asyncio.run(main_checker_func_second(accounts, proxies))
+
+    for result in all_results:
+        results.append(result)
+
+    return results
+
+@userRouter.post('/make-check')
+def create_account_func(acccount_list: List[str] = Body(...), proxies_list: List[str] = Body(...), db: Session = Depends(get_db), current_user: model.UserTable = Depends(get_current_user)):
+    if current_user.role == 'admin':
+        try:
+            checker_results = sync_main_checker(acccount_list, proxies_list)
+            print(checker_results)
+            print(len(checker_results))
+            return checker_results
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Error: {e}")
+    else: 
+        raise HTTPException(status_code=400, detail="Access denied")
