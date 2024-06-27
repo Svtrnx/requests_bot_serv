@@ -7,7 +7,7 @@ import base64
 from fake_useragent import UserAgent
 import random
 import string
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import gc
 import websockets
 
@@ -117,17 +117,31 @@ def cleanup_memory():
 
 async def fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag, bot_work_time_minutes, model_id):
     while True:
-        # formatted_cookies = cookies[0]
+        print(cookies)
         # print('fetch data cookies:', formatted_cookies)
-        
-        if datetime.now() >= bot_work_time_minutes or get_cancel_flag():
-            await asyncio.sleep(random.randint(60 * 2, 60 * 7))
-            break
+        print('bot_work_time_minutes', bot_work_time_minutes)
+        if datetime.now(timezone.utc) >= bot_work_time_minutes or get_cancel_flag():
+            if random.randint(1,2) == 1:
+                await asyncio.sleep(160)
+                async with session.get(f"https://chaturbate.com/push_service/room_user_count/{model_id}/?presence_id={presence_id}", headers=headers, cookies=cookies, proxy=f"socks5://{proxy_url}") as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        # print(f"{url}:")
+                        # print(data)
+                    else:
+                        # print(f"Error: {response.status} for URL: {url}")
+                        pass
+                await asyncio.sleep(60)
+                break
+            else:
+                print('2 exit')
+                await asyncio.sleep(190)
+                break
         try:
             async with session.get(url, headers=headers, cookies=cookies, proxy=f"socks5://{proxy_url}") as response:
                 if response.status == 200:
                     data = await response.json()
-                    # print(f"{url}:")
+                    print(f"{url}:")
                     # print(data)
                 else:
                     # print(f"Error: {response.status} for URL: {url}")
@@ -164,7 +178,7 @@ async def make_request(credentials, proxy_url, bot_work_time_minutes, scheduled_
     #     # await send_increment_message(task_id=scheduled_task.task_id)
     # except Exception as e:
     #     print("EBSOCKET CONN ERR", e)
-    current_time = datetime.now()
+    current_time = datetime.now(timezone.utc)
     time_until_bot_work = bot_work_time_minutes - current_time
     seconds_until_bot_work = time_until_bot_work.total_seconds()
     def get_cancel_flag():

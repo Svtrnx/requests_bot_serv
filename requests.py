@@ -159,7 +159,7 @@ def delete_account_by_username(db: Session, account_list: List[str], user: str):
         db.commit()
         
     except Exception as e:
-        return {f"Error deleting proxies: {e}"}
+        return {f"Error deleting account by cookie: {e}"}
     
     
 def take_users(db: Session, username: str):

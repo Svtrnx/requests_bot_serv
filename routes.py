@@ -8,7 +8,7 @@ from typing import Dict, List, Deque
 from collections import deque
 from requests import create_user, delete_account, get_tasks_list, get_user_only_by_username, delete_user, take_users, delete_account_by_username, get_accounts_list, create_task_func, create_account_list, create_proxy_list, get_proxy_list, delete_proxy
 from connection import get_db
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import model
 from bs4 import BeautifulSoup
 import aiohttp
@@ -24,6 +24,8 @@ from config import ACCESS_TOKEN_EXPIRE_MINUTES
 import logging
 from config import DB_NAME, DB_HOST, DB_PORT, DB_USER, DB_PASS
 import time
+from curl_cffi.requests import AsyncSession
+from asyncio import WindowsSelectorEventLoopPolicy
 
 load_dotenv()
 
@@ -86,7 +88,7 @@ async def send_message(task_id: str, message: str):
 
 @userRouter.post("/connect-websocket/")
 async def connect_websocket(task_id: str):
-    uri = f"wss://https://extended-leia-kenzomd-c840e7ab.koyeb.app/ws/{task_id}"
+    uri = f"wss://extended-leia-kenzomd-c840e7ab.koyeb.app/ws/{task_id}"
     async def websocket_client():
         async with websockets.connect(uri) as websocket:
             # await websocket.send("Hello Server!")
@@ -121,14 +123,18 @@ async def perform_custom_task(task_id, delay, bot_work_time, scheduled_task, mod
         user = scheduled_task.username
         # await asyncio.sleep(3)
         # await send_message(task_id=task_id, message='123')
-        await asyncio.sleep(delay)
+        print('!!!!!!!!!!!!')
+        if delay > 0:
+            print('!@@@@@@@@@@@@@@@@@@')
+            await asyncio.sleep(delay)
         await connect_websocket(task_id=user)
+        print('3333333333333333333333333333')
         
         # await increment_threads_count_status(task_id, 3)
         info = await get_task_status(task_id=task_id)
         print(info)
         if info['status'] == 'scheduled':
-            current_time = datetime.now()
+            current_time = datetime.now(timezone.utc)
             bot_work_time_minutes = current_time + timedelta(minutes=bot_work_time)
 
             # websocket = await websockets.connect(f'ws://localhost:8000/ws/{task_id}')
@@ -167,7 +173,7 @@ async def perform_custom_task(task_id, delay, bot_work_time, scheduled_task, mod
                 await send_message(task_id=user, message=f'{task_id}:{current_iteration}')
                 await update_task_thread_count(task_id=task_id, new_thread_count=current_iteration)
                 await asyncio.sleep(cool_down)
-                if scheduled_task.cancel_flag.is_set() or datetime.now() >= bot_work_time_minutes:
+                if scheduled_task.cancel_flag.is_set() or datetime.now(timezone.utc) >= bot_work_time_minutes:
                     print(f"Task {task_id} has been canceled")
                     break
 
@@ -182,7 +188,7 @@ async def perform_custom_task(task_id, delay, bot_work_time, scheduled_task, mod
                 task_id=scheduled_task.task_id,
                 task_delay=0,
                 task_user=scheduled_task.username,
-                task_datetime=datetime.now(),
+                task_datetime=datetime.now(timezone.utc),
                 threads_count=0,
                 task_work=0
             )
@@ -193,7 +199,7 @@ async def perform_custom_task(task_id, delay, bot_work_time, scheduled_task, mod
                 task_id=scheduled_task.task_id,
                 task_delay=0,
                 task_user=scheduled_task.username,
-                task_datetime=datetime.now(),
+                task_datetime=datetime.now(timezone.utc),
                 threads_count=0,
                 task_work=0
             )
@@ -273,9 +279,6 @@ async def schedule_task(request: model.ScheduleTaskRequest, background_tasks: Ba
     else:
         new_task_status = 'active'
     
-    print('active_tasks_with_status', active_tasks_with_status)
-    print('len(active_tasks_with_status)', len(active_tasks_with_status))
-    print('current_user', current_user.application_count)
     check = False
     if new_task_status == "scheduled" and len(active_tasks_with_status) >= current_user.application_count:
         check = True
@@ -289,7 +292,7 @@ async def schedule_task(request: model.ScheduleTaskRequest, background_tasks: Ba
             creation_time = task["creation_time"]
             end_time = task["end_time"]
             
-            if creation_time <= datetime.now() + timedelta(seconds=request.delay) <= end_time:
+            if creation_time <= datetime.now(timezone.utc) + timedelta(seconds=request.delay) <= end_time:
                 raise HTTPException(status_code=400, detail="This time is already busy!")
     
     
@@ -297,9 +300,14 @@ async def schedule_task(request: model.ScheduleTaskRequest, background_tasks: Ba
     if request.num_tasks > current_user.thread_count:
         raise HTTPException(status_code=400, detail="You have reached the threads limit")
 
+    print('request.delay', request.delay)
+    print('request.delay', request.bot_work_time)
+    print('timedelta(seconds=request.delay)', timedelta(seconds=request.delay))
+    print(datetime.now(timezone.utc) + timedelta(minutes=request.bot_work_time))
+    end_time_ = datetime.now(timezone.utc) + timedelta(minutes=request.bot_work_time)
     task_id = generate_random_id()
     threads_count_status = 0
-    scheduled_task = model.ScheduledTask(task_id, current_user.username, request.num_tasks, request.streamer_id, "scheduled", request.delay, datetime.now(), datetime.now() + timedelta(seconds=request.delay), threads_count_status)
+    scheduled_task = model.ScheduledTask(task_id, current_user.username, request.num_tasks, request.streamer_id, "scheduled", request.delay, datetime.now(timezone.utc), end_time_, threads_count_status)
     scheduled_tasks[task_id] = scheduled_task
     background_tasks.add_task(perform_custom_task, task_id, request.delay, request.bot_work_time, scheduled_task, request.streamer_id, request.num_tasks, request.cool_down_tasks, db)
     form_data = model.TaskRegRequestForm(
@@ -307,7 +315,7 @@ async def schedule_task(request: model.ScheduleTaskRequest, background_tasks: Ba
         task_id=request.streamer_id,
         task_delay=request.delay,
         task_user=current_user.username,
-        task_datetime=datetime.now(),
+        task_datetime=datetime.now(timezone.utc),
         threads_count=request.num_tasks,
         task_work=request.bot_work_time
     )
@@ -326,7 +334,7 @@ async def cancel_task(task_id: str, db: Session = Depends(get_db), current_user:
                 task_id=scheduled_task.task_id,
                 task_delay=0,
                 task_user=scheduled_task.username,
-                task_datetime=datetime.now(),
+                task_datetime=datetime.now(timezone.utc),
                 threads_count=0,
                 task_work=0
             )
@@ -342,7 +350,7 @@ async def cancel_task(task_id: str, db: Session = Depends(get_db), current_user:
 @userRouter.post('/create_reg_account')
 async def reg_account(db: Session = Depends(get_db), form_data: model.UserRegRequestForm = Depends(), current_user: model.UserTable = Depends(get_current_user)):
     if current_user.role == 'admin':
-        current_time = datetime.now()
+        current_time = datetime.now(timezone.utc)
         new_time = current_time + timedelta(days=form_data.sub_end_time)
         new_user_reg = model.UserTable(
             username=form_data.username,
@@ -390,7 +398,7 @@ async def check_auth(db: Session = Depends(get_db), current_user: model.UserTabl
 
 # @userRouter.post('/create_task')
 async def create_task(db: Session = Depends(get_db), form_data: model.TaskRegRequestForm = Depends()):
-    current_time = datetime.now()
+    current_time = datetime.now(timezone.utc)
     print(current_time)
     new_task_reg = model.TaskTable(
         task_status=form_data.task_status,
@@ -415,7 +423,7 @@ def create_proxy_func(proxy_list: List[str] = Body(...), db: Session = Depends(g
                 proxy_username=proxy.split(':')[2],
                 proxy_password=proxy.split(':')[3],
                 proxy_user_id=current_user.username,
-                proxy_datetime=datetime.now()
+                proxy_datetime=datetime.now(timezone.utc)
             )
             for proxy in proxy_list
         ]
@@ -447,20 +455,88 @@ async def delete_proxy_func(proxy_list: List[str] = Body(...), db: Session = Dep
     
     except HTTPException as e:
         return {"error": str(e)}
-    
+
+
+async def fetch_data_cookies(account, proxy):
+    async with AsyncSession() as session:
+        ua = UserAgent()
+        username, password = account.split(':')
+        # session = requests.Session()
+
+        # print(response.text())
+        proxies = { 
+            "https" : proxy, 
+        }
+        response = await session.get("https://chaturbate.com/auth/login", impersonate="chrome110", proxies=proxies)
+        
+        # print(response.text)
+        csrf_token = ''
+        if response.status_code == 200:
+            html_content = response.content
+            soup = BeautifulSoup(html_content, 'html.parser')
+            csrf_token = soup.find('input', {'name': 'csrfmiddlewaretoken'}).get('value')
+            # print(csrf_token)
+            
+        else:
+            print(f'Failed to fetch login page. Status code: {response.status_code}')
+            
+            
+        url = 'https://chaturbate.com/auth/login/'
+        headers = {
+            'Referer': 'https://chaturbate.com/auth/login/',
+            'Referrer-Policy': 'strict-origin-when-cross-origin',
+            "User-Agent": ua.random
+        }
+        data = {
+            'next': '',
+            'csrfmiddlewaretoken': csrf_token,
+            'username': username,
+            'password': password
+        }
+
+        response = await session.post(url, headers=headers, data=data, impersonate="chrome110", proxies=proxies)
+
+        print(response)
+
+        if response.status_code == 200:
+            return {"acc_login": username, "acc_password": password, 'acc_cookie': session.cookies.get('sessionid')}
+        else:
+            print(f"Error to login {username}: {response.status_code}")
+
+async def main_checker_func(accounts, proxies):
+    tasks = []
+    for account, proxy in zip(accounts, proxies):
+        tasks.append(fetch_data_cookies(account, proxy))
+
+    results = await asyncio.gather(*tasks)
+
+    return results    
+
+def sync_main(accounts, proxies):
+    asyncio.set_event_loop_policy(WindowsSelectorEventLoopPolicy())
+    results = [] 
+    all_results = asyncio.run(main_checker_func(accounts, proxies))
+
+    for result in all_results:
+        results.append(result)
+
+    return results
 
 @userRouter.post('/create-account')
-def create_account_func(acccount_list: List[dict] = Body(...), db: Session = Depends(get_db), current_user: model.UserTable = Depends(get_current_user)):
+def create_account_func(acccount_list: List[str] = Body(...), proxies_list: List[str] = Body(...), db: Session = Depends(get_db), current_user: model.UserTable = Depends(get_current_user)):
     try:
+        checker_results = sync_main(acccount_list, proxies_list)
+        print(checker_results)
+        print(len(checker_results))
         new_accounts = [
             model.AccountTable(
                 acc_login=account['acc_login'],
                 acc_password=account['acc_password'],
                 acc_cookie=account['acc_cookie'],
                 acc_user_id=current_user.username,
-                acc_datetime=datetime.now(),
+                acc_datetime=datetime.now(timezone.utc),
             )
-            for account in acccount_list
+            for account in checker_results
         ]
         create_account_list(db=db, user=current_user.username, account_media=new_accounts)
         return {'status': 'success'}
@@ -493,7 +569,9 @@ async def delete_account_func(account_list: List[str] = Body(...), db: Session =
     
 
 async def make_request_check(session, sessionid, username, proxy_url):
+    resp = ''
     try:
+        print(proxy_url)
         ua = UserAgent()
         headers = {
             "x-requested-with": "XMLHttpRequest",
@@ -502,18 +580,18 @@ async def make_request_check(session, sessionid, username, proxy_url):
             "User-Agent": ua.random
         }
         cookies = {"sessionid": sessionid}
-        url = "https://chaturbate.com"
+        url = "https://chaturbate.com/api/ts/accounts/editsettings/?"
         async with session.get(url, headers=headers, cookies=cookies, proxy=f"socks5://{proxy_url}") as response:
-            result = await response.text() 
+            # result = await response.text() 
+            # soup = BeautifulSoup(result, 'html.parser')
+            # resp = soup
 
-            soup = BeautifulSoup(result, 'html.parser')
+            # found_variables = soup.find_all(string=lambda text: username.lower() in text.lower())
 
-            found_variables = soup.find_all(string=lambda text: username.lower() in text.lower())
-
-            if found_variables:
+            if response.status == 200:
                 return {"username": username, 'sessionid': sessionid}
     except Exception as e:
-        print(f"error in make_request_check: {e}")
+        print(f"error in make_request_check: {e}\n proxy: {proxy_url}")
     
 async def perform_custom_check(proxies, cookies, usernames):
     try:
@@ -578,7 +656,7 @@ def get_users_func(db: Session = Depends(get_db), current_user: model.UserTable 
     
 @userRouter.delete("/delete-user")
 async def delete_user_func(user_id: str = Body(embed=True), db: Session = Depends(get_db), current_user: model.UserTable = Depends(get_current_user)):
-    if current_user.role == 'admin':
+    if current_user.role == 'admin' or current_user.username == 'booster' or current_user.username == 'kenzo':
         try:
             delete_user(db=db, user_id=user_id, user=current_user.username)
     
@@ -621,7 +699,10 @@ async def update_user_func(
         if form_data.application_count:
             db_user.application_count = form_data.application_count
         if form_data.link_pinned:
-            db_user.link_pinned = form_data.link_pinned
+            if form_data.link_pinned == 'delete':
+                db_user.link_pinned = None
+            else:
+                db_user.link_pinned = form_data.link_pinned
         
 
         db.commit()
@@ -660,3 +741,4 @@ async def get_all_active_tasks(current_user: model.UserTable = Depends(get_curre
         return active_tasks
     else: 
         raise HTTPException(status_code=400, detail="Access denied")
+    
