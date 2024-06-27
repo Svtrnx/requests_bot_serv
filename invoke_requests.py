@@ -117,9 +117,9 @@ def cleanup_memory():
 
 async def fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag, bot_work_time_minutes, model_id):
     while True:
-        print(cookies)
+        # print(cookies)
         # print('fetch data cookies:', formatted_cookies)
-        print('bot_work_time_minutes', bot_work_time_minutes)
+        # print('bot_work_time_minutes', bot_work_time_minutes)
         if datetime.now(timezone.utc) >= bot_work_time_minutes or get_cancel_flag():
             if random.randint(1,2) == 1:
                 await asyncio.sleep(160)
@@ -134,14 +134,14 @@ async def fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag,
                 await asyncio.sleep(60)
                 break
             else:
-                print('2 exit')
+                # print('2 exit')
                 await asyncio.sleep(190)
                 break
         try:
             async with session.get(url, headers=headers, cookies=cookies, proxy=f"socks5://{proxy_url}") as response:
                 if response.status == 200:
                     data = await response.json()
-                    print(f"{url}:")
+                    # print(f"{url}:")
                     # print(data)
                 else:
                     # print(f"Error: {response.status} for URL: {url}")
