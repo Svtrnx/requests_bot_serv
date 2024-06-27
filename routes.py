@@ -88,7 +88,7 @@ async def send_message(task_id: str, message: str):
 
 @userRouter.post("/connect-websocket/")
 async def connect_websocket(task_id: str):
-    uri = f"wss://extended-leia-kenzomd-c840e7ab.koyeb.app/ws/{task_id}"
+    uri = f"ws://extended-leia-kenzomd-c840e7ab.koyeb.app/ws/{task_id}"
     async def websocket_client():
         async with websockets.connect(uri) as websocket:
             # await websocket.send("Hello Server!")
@@ -791,6 +791,8 @@ async def fetch_data_cookies_checker(account, proxy):
         response = await session.get(url, cookies=session.cookies, impersonate="chrome110", proxies=proxies)
         data = []
         print(response)
+        if response.status_code != 200:
+            return {"acc_login": username, "acc_password": password, "type": 'error', "token_balance": "0", "transaction": ""}
         try:
             data = response.json()
         except json.JSONDecodeError:
