@@ -749,7 +749,10 @@ async def fetch_data_cookies_checker(account, proxy):
     async with AsyncSession() as session:
         ua = UserAgent()
         usAgent = ua.random
-        username, password = account.split(':')
+        try:
+            username, password = account.split(':')
+        except Exception as e:
+            return
         # session = requests.Session()
 
         # print(response.text())
@@ -794,8 +797,11 @@ async def fetch_data_cookies_checker(account, proxy):
         if response.status_code != 200:
             return {"acc_login": username, "acc_password": password, "type": 'error', "token_balance": "0", "transaction": ""}
         try:
-            data = response.json()
-        except json.JSONDecodeError:
+            if isinstance(response, list):
+                data = response.json()
+            else:
+                return {"acc_login": username, "acc_password": password, "type": 'error', "token_balance": "0", "transaction": ""}
+        except Exception as e:
             return {}
             
         if not data:
@@ -803,6 +809,7 @@ async def fetch_data_cookies_checker(account, proxy):
      
      
         if 'transactions' in data:
+            print('111')
             transactions = data['transactions']
             if transactions:
                 token_balance = data['token_balance']
@@ -815,6 +822,7 @@ async def fetch_data_cookies_checker(account, proxy):
                 else:
                     return {}
         else:
+            print('333')
             if 'periods' in data:
                 return {"acc_login": username, "acc_password": password, "type": 'empty', "transaction": ""}
             else:
@@ -842,6 +850,7 @@ def sync_main_checker(accounts, proxies):
     all_results = asyncio.run(main_checker_func_second(accounts, proxies))
 
     for result in all_results:
+        print(result)
         if result:
             results.append(result)
 
