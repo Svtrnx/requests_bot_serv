@@ -512,21 +512,18 @@ async def fetch_data_cookies(account, proxy):
         return {}
     
     
-async def check_account_with_proxies(account, proxies):
-    tasks = [fetch_data_cookies(account, proxy) for proxy in proxies]
-    for task in asyncio.as_completed(tasks):
-        result = await task
-        if result:
-            return result
-    return None
-
 async def main_checker_func(accounts, proxies):
-    tasks = [check_account_with_proxies(account, proxies) for account in accounts]
+    tasks = []
+    for account, proxy in zip(accounts, proxies):
+        tasks.append(fetch_data_cookies(account, proxy))
+
     results = await asyncio.gather(*tasks)
-    return results
+
+    return results    
 
 def sync_main(accounts, proxies):
-    results = []
+    # asyncio.set_event_loop_policy(WindowsSelectorEventLoopPolicy())
+    results = [] 
     all_results = asyncio.run(main_checker_func(accounts, proxies))
 
     for result in all_results:
