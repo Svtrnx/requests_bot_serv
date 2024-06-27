@@ -123,12 +123,9 @@ async def perform_custom_task(task_id, delay, bot_work_time, scheduled_task, mod
         user = scheduled_task.username
         # await asyncio.sleep(3)
         # await send_message(task_id=task_id, message='123')
-        print('!!!!!!!!!!!!')
         if delay > 0:
-            print('!@@@@@@@@@@@@@@@@@@')
             await asyncio.sleep(delay)
         await connect_websocket(task_id=user)
-        print('3333333333333333333333333333')
         
         # await increment_threads_count_status(task_id, 3)
         info = await get_task_status(task_id=task_id)
