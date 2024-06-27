@@ -460,56 +460,56 @@ async def delete_proxy_func(proxy_list: List[str] = Body(...), db: Session = Dep
 
 
 async def fetch_data_cookies(account, proxy):
-    async with AsyncSession() as session:
-        ua = UserAgent()
-        username, password = account.split(':')
-        # session = requests.Session()
+    try:
+        async with AsyncSession() as session:
+            ua = UserAgent()
+            username, password = account.split(':')
+            # session = requests.Session()
 
-        # print(response.text())
-        proxies = { 
-            "https" : proxy, 
-        }
-        try:
-            response = await session.get("https://chaturbate.com/auth/login", impersonate="chrome110", proxies=proxies)
-        except Exception as e:
-            print(e)
-            return
-        # print(response.text)
-        csrf_token = ''
-        if response.status_code == 200:
-            html_content = response.content
-            soup = BeautifulSoup(html_content, 'html.parser')
-            csrf_token = soup.find('input', {'name': 'csrfmiddlewaretoken'}).get('value')
-            # print(csrf_token)
-            
-        else:
-            print(f'Failed to fetch login page. Status code: {response.status_code}')
-            
-            
-        url = 'https://chaturbate.com/auth/login/'
-        headers = {
-            'Referer': 'https://chaturbate.com/auth/login/',
-            'Referrer-Policy': 'strict-origin-when-cross-origin',
-            "User-Agent": ua.random
-        }
-        data = {
-            'next': '',
-            'csrfmiddlewaretoken': csrf_token,
-            'username': username,
-            'password': password
-        }
-        try:
-            response = await session.post(url, headers=headers, data=data, impersonate="chrome110", proxies=proxies)
-        except Exception as e:
-            print(e)
-            return
-        print(response)
+            # print(response.text())
+            proxies = { 
+                "https" : proxy, 
+            }
+            try:
+                response = await session.get("https://chaturbate.com/auth/login", impersonate="chrome110", proxies=proxies)
+            except Exception as e:
+                return {}
+            # print(response.text)
+            csrf_token = ''
+            if response.status_code == 200:
+                html_content = response.content
+                soup = BeautifulSoup(html_content, 'html.parser')
+                csrf_token = soup.find('input', {'name': 'csrfmiddlewaretoken'}).get('value')
+                # print(csrf_token)
+                
+            else:
+                print(f'Failed to fetch login page. Status code: {response.status_code}')
+                
+                
+            url = 'https://chaturbate.com/auth/login/'
+            headers = {
+                'Referer': 'https://chaturbate.com/auth/login/',
+                'Referrer-Policy': 'strict-origin-when-cross-origin',
+                "User-Agent": ua.random
+            }
+            data = {
+                'next': '',
+                'csrfmiddlewaretoken': csrf_token,
+                'username': username,
+                'password': password
+            }
+            try:
+                response = await session.post(url, headers=headers, data=data, impersonate="chrome110", proxies=proxies)
+            except Exception as e:
+                return {}
+            print(response)
 
-        if response.status_code == 200:
-            return {"acc_login": username, "acc_password": password, 'acc_cookie': session.cookies.get('sessionid')}
-        else:
-            print(f"Error to login {username}: {response.status_code}")
-
+            if response.status_code == 200:
+                return {"acc_login": username, "acc_password": password, 'acc_cookie': session.cookies.get('sessionid')}
+            else:
+                print(f"Error to login {username}: {response.status_code}")
+    except Exception as e:
+        return {}
 async def main_checker_func(accounts, proxies):
     tasks = []
     for account, proxy in zip(accounts, proxies):
@@ -525,7 +525,8 @@ def sync_main(accounts, proxies):
     all_results = asyncio.run(main_checker_func(accounts, proxies))
 
     for result in all_results:
-        results.append(result)
+        if result:
+            results.append(result)
 
     return results
 
