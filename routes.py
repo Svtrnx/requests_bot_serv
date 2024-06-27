@@ -757,10 +757,10 @@ async def fetch_data_cookies_checker(account, proxy):
     async with AsyncSession() as session:
         ua = UserAgent()
         usAgent = ua.random
-        username, password = account.split(':')
-        # try:
-        # except Exception as e:
-        #     return
+        try:
+            username, password = account.split(':')
+        except Exception as e:
+            return
         # session = requests.Session()
 
         # print(response.text())
