@@ -513,7 +513,7 @@ async def main_checker_func(accounts, proxies):
     return results    
 
 def sync_main(accounts, proxies):
-    asyncio.set_event_loop_policy(WindowsSelectorEventLoopPolicy())
+    # asyncio.set_event_loop_policy(WindowsSelectorEventLoopPolicy())
     results = [] 
     all_results = asyncio.run(main_checker_func(accounts, proxies))
 
