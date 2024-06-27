@@ -510,18 +510,23 @@ async def fetch_data_cookies(account, proxy):
                 print(f"Error to login {username}: {response.status_code}")
     except Exception as e:
         return {}
+    
+    
+async def check_account_with_proxies(account, proxies):
+    tasks = [fetch_data_cookies(account, proxy) for proxy in proxies]
+    for task in asyncio.as_completed(tasks):
+        result = await task
+        if result:
+            return result
+    return None
+
 async def main_checker_func(accounts, proxies):
-    tasks = []
-    for account, proxy in zip(accounts, proxies):
-        tasks.append(fetch_data_cookies(account, proxy))
-
+    tasks = [check_account_with_proxies(account, proxies) for account in accounts]
     results = await asyncio.gather(*tasks)
-
-    return results    
+    return results
 
 def sync_main(accounts, proxies):
-    # asyncio.set_event_loop_policy(WindowsSelectorEventLoopPolicy())
-    results = [] 
+    results = []
     all_results = asyncio.run(main_checker_func(accounts, proxies))
 
     for result in all_results:
