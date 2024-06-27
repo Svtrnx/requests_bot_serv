@@ -25,7 +25,7 @@ import logging
 from config import DB_NAME, DB_HOST, DB_PORT, DB_USER, DB_PASS
 import time
 from curl_cffi.requests import AsyncSession
-from asyncio import WindowsSelectorEventLoopPolicy
+# from asyncio import WindowsSelectorEventLoopPolicy
 
 load_dotenv()
 
