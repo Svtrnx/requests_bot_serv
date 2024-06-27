@@ -88,7 +88,7 @@ async def send_message(task_id: str, message: str):
 
 @userRouter.post("/connect-websocket/")
 async def connect_websocket(task_id: str):
-    uri = f"ws://extended-leia-kenzomd-c840e7ab.koyeb.app/ws/{task_id}"
+    uri = f"wss://extended-leia-kenzomd-c840e7ab.koyeb.app/ws/{task_id}"
     async def websocket_client():
         async with websockets.connect(uri) as websocket:
             # await websocket.send("Hello Server!")
