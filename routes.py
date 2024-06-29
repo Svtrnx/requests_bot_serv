@@ -502,10 +502,12 @@ async def fetch_data_cookies(account, proxy):
                 response = await session.post(url, headers=headers, data=data, impersonate="chrome110", proxies=proxies)
             except Exception as e:
                 return {}
-            print(response)
+            print(response.status_code)
 
             if response.status_code == 200:
-                return {"acc_login": username, "acc_password": password, 'acc_cookie': session.cookies.get('sessionid')}
+                print(session.cookies.get('sessionid'))
+                if session.cookies.get('sessionid'):
+                    return {"acc_login": username, "acc_password": password, 'acc_cookie': session.cookies.get('sessionid')}
             else:
                 print(f"Error to login {username}: {response.status_code}")
     except Exception as e:
