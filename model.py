@@ -85,7 +85,7 @@ class ScheduleTaskRequest(BaseModel):
     delay: int
     bot_work_time: int
     streamer_id: str
-    num_tasks: int
+    num_tasks: str
     cool_down_tasks: int
     
 class ScheduledTask:

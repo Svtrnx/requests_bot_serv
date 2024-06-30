@@ -6,7 +6,7 @@ from invoke_requests import main, make_request
 import json
 from typing import Dict, List, Deque
 from collections import deque
-from requests import create_user, delete_account, get_tasks_list, get_user_only_by_username, delete_user, take_users, delete_account_by_username, get_accounts_list, create_task_func, create_account_list, create_proxy_list, get_proxy_list, delete_proxy
+from requests import create_user, delete_account, get_accounts_list_count, get_tasks_list, get_user_only_by_username, delete_user, take_users, delete_account_by_username, get_accounts_list, create_task_func, create_account_list, create_proxy_list, get_proxy_list, delete_proxy
 from connection import get_db
 from datetime import datetime, timedelta, timezone
 import model
@@ -104,11 +104,13 @@ def generate_random_id(length=6):
 
 
 #############################################################################
-async def perform_custom_task(task_id, delay, bot_work_time, scheduled_task, model_id, num_tasks, cool_down_tasks, db):
+async def perform_custom_task(task_id, delay, bot_work_time, scheduled_task, model_id, num_tasks, cool_down_tasks, db, num_tasks_first, num_tasks_second):
     try:
-        accounts_list = get_accounts_list(db=db, username=scheduled_task.username)
         proxy_list = get_proxy_list(db=db, username=scheduled_task.username)
-        
+        accounts_list = get_accounts_list_count(db=db, username=scheduled_task.username, start_id=num_tasks_first, end_id=num_tasks_second)
+        print('account list len:', len(accounts_list))
+        print('num_tasks', num_tasks)
+        # print('account list:', accounts_list)
         cookies = []
         for cookie in accounts_list:
             formatted_cookie = f"{cookie.acc_cookie}"
@@ -164,7 +166,7 @@ async def perform_custom_task(task_id, delay, bot_work_time, scheduled_task, mod
             for i in range(num_tasks_):
                 proxy = proxies[i % len(proxies)]
                 print('cookies[i]', cookies[i])
-                task = asyncio.create_task(make_request(cookies[i], proxy, bot_work_time_minutes, scheduled_task, model_id))
+                task = asyncio.create_task(make_request(cookies[i], proxy, bot_work_time_minutes, scheduled_task, model_id, random.randint(0, 1)))
                 tasks.append(task)
                 current_iteration += 1
                 await send_message(task_id=user, message=f'{task_id}:{current_iteration}')
@@ -292,9 +294,10 @@ async def schedule_task(request: model.ScheduleTaskRequest, background_tasks: Ba
             if creation_time <= datetime.now(timezone.utc) + timedelta(seconds=request.delay) <= end_time:
                 raise HTTPException(status_code=400, detail="This time is already busy!")
     
-    
-    # total_threads_count = sum(task["threads_count"] for task in active_tasks)
-    if request.num_tasks > current_user.thread_count:
+    num_tasks_first, num_tasks_second = request.num_tasks.split(":")
+    print(num_tasks_first, num_tasks_second)
+    sum_time = int(num_tasks_second) - int(num_tasks_first)
+    if sum_time > current_user.thread_count:
         raise HTTPException(status_code=400, detail="You have reached the threads limit")
 
 
@@ -309,9 +312,9 @@ async def schedule_task(request: model.ScheduleTaskRequest, background_tasks: Ba
         end_time_ = datetime.now(timezone.utc) + timedelta(minutes=request.bot_work_time)
     task_id = generate_random_id()
     threads_count_status = 0
-    scheduled_task = model.ScheduledTask(task_id, current_user.username, request.num_tasks, request.streamer_id, "scheduled", request.delay, start_time_, end_time_, threads_count_status)
+    scheduled_task = model.ScheduledTask(task_id, current_user.username, sum_time, request.streamer_id, "scheduled", request.delay, start_time_, end_time_, threads_count_status)
     scheduled_tasks[task_id] = scheduled_task
-    background_tasks.add_task(perform_custom_task, task_id, request.delay, request.bot_work_time, scheduled_task, request.streamer_id, request.num_tasks, request.cool_down_tasks, db)
+    background_tasks.add_task(perform_custom_task, task_id, request.delay, request.bot_work_time, scheduled_task, request.streamer_id, sum_time, request.cool_down_tasks, db, int(num_tasks_first), int(num_tasks_second))
     form_data = model.TaskRegRequestForm(
         task_status="scheduled",
         task_id=request.streamer_id,
@@ -418,17 +421,22 @@ async def create_task(db: Session = Depends(get_db), form_data: model.TaskRegReq
 @userRouter.post('/create-proxy')
 def create_proxy_func(proxy_list: List[str] = Body(...), db: Session = Depends(get_db), current_user: model.UserTable = Depends(get_current_user)):
     try:
-        new_proxies = [
-            model.ProxyTable(
-                proxy_host=proxy.split(':')[0],
-                proxy_port=proxy.split(':')[1],
-                proxy_username=proxy.split(':')[2],
-                proxy_password=proxy.split(':')[3],
+        new_proxies = []
+        for proxy in proxy_list:
+            credentials, host_info = proxy.split('@')
+            proxy_username, proxy_password = credentials.split(':')
+            proxy_host, proxy_port = host_info.split(':')
+            
+            new_proxy = model.ProxyTable(
+                proxy_host=proxy_host,
+                proxy_port=proxy_port,
+                proxy_username=proxy_username,
+                proxy_password=proxy_password,
                 proxy_user_id=current_user.username,
                 proxy_datetime=datetime.now(timezone.utc)
             )
-            for proxy in proxy_list
-        ]
+            new_proxies.append(new_proxy)
+
         create_proxy_list(db=db, proxy_media=new_proxies)
         return {'status': 'success'}
     except Exception as e:

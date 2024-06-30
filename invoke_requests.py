@@ -115,14 +115,16 @@ sec_ch_ua, sec_ch_ua_mobile, sec_ch_ua_platform = generate_sec_ch_ua_headers(use
 def cleanup_memory():
     gc.collect()
 
-async def fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag, bot_work_time_minutes, model_id):
+async def fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag, bot_work_time_minutes, model_id, randomInfo):
     while True:
+        # print("randomInfo", randomInfo)
         # print(cookies)
         # print('fetch data cookies:', formatted_cookies)
         # print('bot_work_time_minutes', bot_work_time_minutes)
         if datetime.now(timezone.utc) >= bot_work_time_minutes or get_cancel_flag():
-            if random.randint(1,2) == 1:
-                await asyncio.sleep(160)
+            if randomInfo == 0:
+                # print('break1')
+                await asyncio.sleep(120)
                 async with session.get(f"https://chaturbate.com/push_service/room_user_count/{model_id}/?presence_id={presence_id}", headers=headers, cookies=cookies, proxy=f"socks5://{proxy_url}") as response:
                     if response.status == 200:
                         data = await response.json()
@@ -131,17 +133,18 @@ async def fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag,
                     else:
                         # print(f"Error: {response.status} for URL: {url}")
                         pass
+                # print('break2')
                 await asyncio.sleep(60)
                 break
             else:
                 # print('2 exit')
-                await asyncio.sleep(190)
+                await asyncio.sleep(160)
                 break
         try:
             async with session.get(url, headers=headers, cookies=cookies, proxy=f"socks5://{proxy_url}") as response:
                 if response.status == 200:
                     data = await response.json()
-                    # print(f"{url}:")
+                    print(f"{url}:")
                     # print(data)
                 else:
                     # print(f"Error: {response.status} for URL: {url}")
@@ -172,7 +175,8 @@ async def fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag,
             await asyncio.sleep(32)
 
 
-async def make_request(credentials, proxy_url, bot_work_time_minutes, scheduled_task, model_id):
+async def make_request(credentials, proxy_url, bot_work_time_minutes, scheduled_task, model_id, randomInfo):
+    
     # try:
     #     print('shed task', scheduled_task.task_id)
     #     # await send_increment_message(task_id=scheduled_task.task_id)
@@ -185,40 +189,21 @@ async def make_request(credentials, proxy_url, bot_work_time_minutes, scheduled_
         return scheduled_task.cancel_flag.is_set()
     ua = UserAgent()
     headers = {
-        # "accept": "*/*",
-        # "accept-language": accept_language,
-        # "newrelic": newrelic_header,
-        # "priority": "u=1, i",
-        # "sec-ch-ua": sec_ch_ua,
-        # "sec-ch-ua-mobile": sec_ch_ua_mobile,
-        # "sec-ch-ua-platform": sec_ch_ua_platform,
-        # "sec-fetch-dest": "empty",
-        # "sec-fetch-mode": "cors",
-        # "traceparent": generate_traceparent(),
-        # "tracestate": generate_tracestate(),
-        # "x-newrelic-id": generate_x_newrelic_id(),
+        "accept": "*/*",
+        "accept-language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
         "x-requested-with": "XMLHttpRequest",
+        "priority": "u=1, i",
+         "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-origin",
         "Referer": "https://chaturbate.com",
         "Referrer-Policy": "strict-origin-when-cross-origin",
         "User-Agent": ua.random
     }
 
     cookies = {"sessionid": credentials}
-    # {cookie['name']: cookie['value'] for cookie in credentials['cookies_trnsl']}
-    # cookies = {
-    #     "name": "sessionid",
-    #     "value": credentials,
-    #     "domain": ".chaturbate.com",
-    #     "path": "/",
-    #     "expires": -1,
-    #     "size": 41,
-    #     "httpOnly": True,
-    #     "secure": True,
-    #     "session": True,
-    #     "priority": "Medium",
-    #     "sameParty": False,
-    #     "sourceScheme": "Secure"
-    #   },
+    
+    print(cookies)
     
     urls_and_intervals = [
         (f"https://chaturbate.com/push_service/room_user_count/{model_id}/?presence_id={presence_id}"),
@@ -235,7 +220,7 @@ async def make_request(credentials, proxy_url, bot_work_time_minutes, scheduled_
     try:
         async with aiohttp.ClientSession() as session:
             tasks = [
-                fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag, bot_work_time_minutes, model_id)
+                fetch_data(session, url, headers, cookies, proxy_url, get_cancel_flag, bot_work_time_minutes, model_id, randomInfo)
                 for url in urls_and_intervals 
             ]
 
