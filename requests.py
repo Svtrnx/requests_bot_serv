@@ -97,6 +97,15 @@ def get_proxy_list(db: Session, username: str):
 
     return results
 
+def get_proxy_list_count(db: Session, username: str, start_id: int, end_id: int):
+    all_results = db.query(ProxyTable).filter(ProxyTable.proxy_user_id == username).all()
+    
+    filtered_results = all_results[start_id:end_id]
+    
+    db.close()
+    
+    return filtered_results
+
 def delete_proxy(db: Session, proxy_list: List[str], user: str, delete_all_user_proxies: bool = False) -> Union[dict, None]:
     try:
         if delete_all_user_proxies:

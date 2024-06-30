@@ -6,7 +6,7 @@ from invoke_requests import main, make_request
 import json
 from typing import Dict, List, Deque
 from collections import deque
-from requests import create_user, delete_account, get_accounts_list_count, get_tasks_list, get_user_only_by_username, delete_user, take_users, delete_account_by_username, get_accounts_list, create_task_func, create_account_list, create_proxy_list, get_proxy_list, delete_proxy
+from requests import create_user, delete_account, get_proxy_list_count, get_accounts_list_count, get_tasks_list, get_user_only_by_username, delete_user, take_users, delete_account_by_username, get_accounts_list, create_task_func, create_account_list, create_proxy_list, get_proxy_list, delete_proxy
 from connection import get_db
 from datetime import datetime, timedelta, timezone
 import model
@@ -106,16 +106,15 @@ def generate_random_id(length=6):
 #############################################################################
 async def perform_custom_task(task_id, delay, bot_work_time, scheduled_task, model_id, num_tasks, cool_down_tasks, db, num_tasks_first, num_tasks_second):
     try:
-        proxy_list = get_proxy_list(db=db, username=scheduled_task.username)
+        proxy_list = get_proxy_list_count(db=db, username=scheduled_task.username, start_id=num_tasks_first, end_id=num_tasks_second)
         accounts_list = get_accounts_list_count(db=db, username=scheduled_task.username, start_id=num_tasks_first, end_id=num_tasks_second)
-        print('account list len:', len(accounts_list))
-        print('num_tasks', num_tasks)
-        # print('account list:', accounts_list)
+        print('account list:', len(accounts_list))
+        print('proxy_list list:', len(proxy_list))
         cookies = []
         for cookie in accounts_list:
             formatted_cookie = f"{cookie.acc_cookie}"
             cookies.append(formatted_cookie)
-        print(cookies)
+        # print(cookies)
         
         proxies = []
         for proxy in proxy_list:
